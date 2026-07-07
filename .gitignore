@@ -1,0 +1,9 @@
+node_modules/
+dist/
+src-tauri/target/
+.env
+.env.local
+.DS_Store
+*.log
+.vscode/
+.vercel/
