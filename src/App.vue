@@ -1,6 +1,11 @@
 <template>
   <div class="app">
-    <Header @refresh="refreshData" @menu="toggleSidebar" />
+    <Header 
+      @refresh="refreshData" 
+      @menu="toggleSidebar"
+      @view-change="currentView = $event"
+      :current-view="currentView"
+    />
     
     <main class="main">
       <div class="main-layout">
@@ -12,30 +17,38 @@
         />
         
         <div class="content-container">
-          <div class="content-header">
-            <SearchBar v-model="searchQuery" />
-            <div class="content-actions">
-              <button class="btn btn-secondary btn-sm" @click="exportData">
-                <Download :size="16" /> 导出数据
-              </button>
-              <label class="btn btn-secondary btn-sm import-btn">
-                <Upload :size="16" /> 导入数据
-                <input type="file" accept=".json" @change="importData" />
-              </label>
-              <button class="btn btn-primary btn-sm" @click="openAddModal">
-                <Plus :size="16" /> 添加链接
-              </button>
-            </div>
-          </div>
-          
-          <LinkList
-            :category="selectedCategory"
-            :search-query="searchQuery"
-            :age-stages="selectedAgeStages"
-            @add-link="openAddModal"
-            @edit-link="openEditModal"
-            @delete-link="handleDeleteLink"
+          <Dashboard 
+            v-if="currentView === 'dashboard'"
+            @category-select="handleCategorySelect"
+            @view-all-links="currentView = 'links'"
           />
+          
+          <template v-else>
+            <div class="content-header">
+              <SearchBar v-model="searchQuery" />
+              <div class="content-actions">
+                <button class="btn btn-secondary btn-sm" @click="exportData">
+                  <Download :size="16" /> 导出数据
+                </button>
+                <label class="btn btn-secondary btn-sm import-btn">
+                  <Upload :size="16" /> 导入数据
+                  <input type="file" accept=".json" @change="importData" />
+                </label>
+                <button class="btn btn-primary btn-sm" @click="openAddModal">
+                  <Plus :size="16" /> 添加链接
+                </button>
+              </div>
+            </div>
+            
+            <LinkList
+              :category="selectedCategory"
+              :search-query="searchQuery"
+              :age-stages="selectedAgeStages"
+              @add-link="openAddModal"
+              @edit-link="openEditModal"
+              @delete-link="handleDeleteLink"
+            />
+          </template>
         </div>
       </div>
     </main>
@@ -70,6 +83,7 @@ import CategoryNav from '@/components/CategoryNav.vue'
 import LinkList from '@/components/LinkList.vue'
 import LinkModal from '@/components/LinkModal.vue'
 import CategoryManager from '@/components/CategoryManager.vue'
+import Dashboard from '@/components/Dashboard.vue'
 import { store } from '@/data/store'
 
 const searchQuery = ref('')
@@ -79,6 +93,7 @@ const modalVisible = ref(false)
 const editingLink = ref(null)
 const showCategoryManager = ref(false)
 const sidebarOpen = ref(true)
+const currentView = ref('dashboard')
 
 onMounted(async () => {
   await store.init()
@@ -86,6 +101,12 @@ onMounted(async () => {
 
 function handleCategoryChange(category) {
   selectedCategory.value = category
+  currentView.value = 'links'
+}
+
+function handleCategorySelect(category) {
+  selectedCategory.value = category
+  currentView.value = 'links'
 }
 
 function handleAgeStageChange(stages) {

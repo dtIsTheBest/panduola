@@ -135,7 +135,10 @@ const defaultLinks = [
     categoryId: 'c1-1',
     tags: ['辅食', '食谱', '营养'],
     ageStages: ['age0-1', 'age1-3'],
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    favorite: false,
+    visitCount: 0,
+    lastVisit: null
   },
   {
     id: 'l2',
@@ -145,7 +148,10 @@ const defaultLinks = [
     categoryId: 'c1-2',
     tags: ['睡眠', '训练', '习惯'],
     ageStages: ['age0-1', 'age1-3', 'age3-6'],
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    favorite: false,
+    visitCount: 0,
+    lastVisit: null
   },
   {
     id: 'l3',
@@ -155,7 +161,10 @@ const defaultLinks = [
     categoryId: 'c1-3',
     tags: ['发育', '身高', '体重'],
     ageStages: ['age0-1', 'age1-3', 'age3-6', 'age6-9', 'age9-12', 'age12-15'],
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    favorite: false,
+    visitCount: 0,
+    lastVisit: null
   },
   {
     id: 'l4',
@@ -165,7 +174,10 @@ const defaultLinks = [
     categoryId: 'c2-1',
     tags: ['疫苗', '接种', '免疫'],
     ageStages: ['age0-1', 'age1-3', 'age3-6', 'age6-9', 'age9-12'],
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    favorite: true,
+    visitCount: 0,
+    lastVisit: null
   },
   {
     id: 'l5',
@@ -175,7 +187,10 @@ const defaultLinks = [
     categoryId: 'c2-2',
     tags: ['常见病', '护理', '发烧'],
     ageStages: ['age0-1', 'age1-3', 'age3-6', 'age6-9', 'age9-12'],
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    favorite: false,
+    visitCount: 0,
+    lastVisit: null
   },
   {
     id: 'l6',
@@ -185,7 +200,10 @@ const defaultLinks = [
     categoryId: 'c4-1',
     tags: ['绘本', '阅读', '推荐'],
     ageStages: ['age1-3', 'age3-6'],
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    favorite: false,
+    visitCount: 0,
+    lastVisit: null
   }
 ]
 
@@ -301,6 +319,31 @@ export const store = reactive({
       }
     }
     return result
+  },
+  
+  async toggleFavorite(id) {
+    const link = this.links.find(l => l.id === id)
+    if (link) {
+      link.favorite = !link.favorite
+      await saveData({ categories: this.categories, links: this.links })
+    }
+  },
+  
+  async recordVisit(id) {
+    const link = this.links.find(l => l.id === id)
+    if (link) {
+      link.visitCount = (link.visitCount || 0) + 1
+      link.lastVisit = Date.now()
+      await saveData({ categories: this.categories, links: this.links })
+    }
+  },
+  
+  getFavoriteLinks() {
+    return this.links.filter(l => l.favorite)
+  },
+  
+  getMostVisitedLinks(limit = 10) {
+    return [...this.links].sort((a, b) => (b.visitCount || 0) - (a.visitCount || 0)).slice(0, limit)
   }
 })
 
