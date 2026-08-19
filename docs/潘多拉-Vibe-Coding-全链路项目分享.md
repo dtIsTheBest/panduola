@@ -1,8 +1,12 @@
 # 潘多拉：一次从想法到可发布产品的 Vibe Coding 全链路实践
 
-> 项目定位：面向家庭成长场景的本地优先资源库，帮助家长按成长阶段整理、筛选、收藏和使用育儿资源。  
-> 技术形态：Vue 3 Web 应用 + Tauri 2 桌面应用，并为 Supabase 账号与云同步预留渐进式能力。  
-> 文档基线：2026-08-18 当前工作区。本文根据项目代码、Git 历史、设计文档、任务清单、Review 记录和本次验证结果整理。
+> 项目定位：面向家庭成长场景的本地优先资源库，帮助家长按成长阶段整理、筛选、收藏和使用育儿资源。
+>
+> 技术形态：Vue 3 Web 应用 + Tauri 2 桌面应用，采用本地优先存储，并通过 Supabase 提供账号与跨设备同步。
+>
+> 线上地址：[www.nurtureprimer.com](https://www.nurtureprimer.com/)
+>
+> 文档基线：2026-08-19。本文根据项目代码、Git 历史、设计文档、任务清单、Review 记录和线上验证结果整理。
 
 ---
 
@@ -17,7 +21,7 @@
 - 使用 AI 成长助手辅助检索和整理问题；
 - 提供疫苗接种攻略、生长记录与趋势图等场景化工具；
 - 在 Web 与桌面端保持本地可用、离线可用；
-- 在不破坏本地体验的前提下，逐步建设可选账号和跨设备同步能力。
+- 在不破坏本地体验的前提下，提供可选账号和跨设备同步能力。
 
 它不是一次性生成的 Demo，而是一个典型的 Vibe Coding 演进案例：先快速把想法做出来，再通过规格化需求、任务拆解、代码审查、自动测试和发布门禁，把“能跑”持续收敛为“可用、可靠、可维护”。
 
@@ -42,7 +46,7 @@
 - 个人数据先写本地，网络和云服务不是核心功能的前置条件；
 - 用户可以导入、导出和恢复数据；
 - Web 与桌面端共享主要交互和业务逻辑；
-- 后续增加账号能力时，不推翻原有本地架构。
+- 账号与同步能力不推翻原有本地架构。
 
 ### 2.3 一句话价值主张
 
@@ -58,25 +62,25 @@
 | 家庭成长资源库 | 支持搜索、分类、标签、收藏、最近收录和访问统计 | `App.vue`、`SearchBar.vue`、`LinkList.vue` |
 | 分类与资源管理 | 支持新增、编辑、删除分类、子分类和资源 | `CategoryManager.vue`、`CategoryModal.vue`、`LinkModal.vue` |
 | 首页概览 | 展示分类数、资源数、收藏数、今日收录和五类内容 Tab | `Dashboard.vue` |
-| AI 成长助手 | 支持豆包网页入口和 OpenAI API 模式，回答按纯文本安全展示 | `AISearch.vue` |
+| AI 成长助手 | 在站内直接提问，通过服务端网关调用豆包模型；部署配置完成后启用 | `AISearch.vue`、`aiAssistantClient.js` |
 | 疫苗接种攻略 | 提供分阶段时间表、补种原则、接种提示和官方来源 | `VaccineGuide.vue`、`vaccineGuide.js` |
 | 生长曲线 | 记录身高、体重、可选头围，展示趋势、变化和历史记录 | `GrowthTracker.vue`、`growthChart.js` |
 | 数据导入导出 | 使用 JSON 完整快照备份和恢复业务数据 | `App.vue`、`store.js` |
 | 本地优先持久化 | Web 使用浏览器存储，Tauri 使用本地文件 | `dataSpaceRepository.js`、`src-tauri/src/lib.rs` |
+| 账号与云同步 | 支持邮箱验证码登录、跨设备同步、冲突处理和恢复副本 | `AccountCenter.vue`、`syncCoordinator.js` |
 | 响应式与可访问性 | 支持桌面、平板和手机布局，补充键盘、焦点和减少动效能力 | 全局样式与各 Vue 组件 |
 
-### 3.2 已完成底层建设、尚未形成完整用户闭环的能力
+### 3.2 账号与云同步
 
-账号与云同步目前处于“基础设施已推进，端到端体验尚未完成”的阶段：
+账号与云同步已经形成可用闭环：
 
-- 已有游客与用户数据空间隔离；
-- 已有损坏数据隔离、恢复副本和设备标识；
-- Tauri 已实现原子文件写入与 Stronghold Session 存储基础；
-- Supabase 已有快照表、RLS 策略和基于 revision 的 CAS 更新函数；
-- 已有邮箱 OTP 认证适配器和云端快照仓库；
-- 尚缺完整同步状态机、跨标签互斥、应用账号门面、账号 UI、冲突交互和最终部署联调。
+- 不登录时数据保存在当前设备，核心功能可离线使用；
+- 登录后按用户隔离数据空间，并自动同步到云端；
+- 多设备同时修改时通过 revision 检测冲突，避免静默覆盖；
+- 覆盖或恢复前自动保留恢复副本；
+- 云端或网络异常不会回滚已经保存的本地数据。
 
-因此，当前可对外准确描述为：**本地版本可独立使用；云同步基础已建设，但不应作为已上线功能宣传。**
+因此，当前可对外准确描述为：**本地优先、登录可选、云端同步、异常不丢数据。**
 
 ### 3.3 仍在规划或开发中的入口
 
@@ -94,8 +98,12 @@
 | 图标 | Lucide Vue Next | 图标风格统一，覆盖导航和工具类场景 |
 | 桌面容器 | Tauri 2 + Rust | 复用 Web UI，同时获得本地文件和安全存储能力 |
 | 本地数据 | localStorage / Tauri 文件 | 保持打开即用和离线可用 |
-| 云端基础 | Supabase Auth + PostgreSQL | 使用托管认证、RLS 和数据库能力，减少自建后端成本 |
-| Web 发布 | Vercel 静态部署配置 | 与 Vite `dist` 产物直接匹配 |
+| 账号与数据服务 | Supabase Auth + PostgreSQL + PostgREST | 提供邮箱登录、数据 API、RLS 权限隔离和版本化快照 |
+| 邮件服务 | Resend SMTP | 向用户发送登录验证码 |
+| AI 网关与模型 | Supabase Edge Functions + 火山方舟 | 保护模型密钥、控制每日额度并返回站内回答 |
+| Web 托管与加速 | 腾讯云 EdgeOne Pages | 自动构建 Vite、托管静态站点、提供 CDN 与 HTTPS |
+| 域名与解析 | 腾讯云域名 + DNSPod | 管理 `nurtureprimer.com` 及 DNS 记录 |
+| 代码与自动部署 | GitHub | 保存源码，并在 `main` 更新后触发线上构建 |
 | 自动测试 | Node.js 内置测试运行器、Rust Test、pgTAP 设计 | 尽量减少测试框架依赖，分别覆盖前端逻辑、原生存储和数据库权限 |
 
 ### 4.2 总体架构
@@ -107,17 +115,26 @@ flowchart TB
     SPACE["本地数据空间仓库<br/>guest / user UUID"]
     WEB["Web localStorage"]
     TAURI["Tauri 原子文件 + Stronghold"]
-    SYNC["同步协调层<br/>状态机、冲突、重试（待完成）"]
+    SYNC["同步协调层<br/>状态机、冲突、重试"]
     ADAPTER["Supabase 认证与快照适配器"]
     DB["PostgreSQL<br/>RLS + revision CAS"]
+    MAIL["Resend SMTP<br/>邮箱验证码"]
+    AI["Edge Function<br/>认证、配额、AI 网关"]
+    ARK["火山方舟<br/>豆包模型"]
+    HOST["EdgeOne Pages<br/>构建、CDN、HTTPS"]
 
+    HOST --> UI
     UI --> STORE
     STORE --> SPACE
     SPACE --> WEB
     SPACE --> TAURI
     STORE -. "本地提交事件" .-> SYNC
-    SYNC -. "待完成接入" .-> ADAPTER
+    SYNC --> ADAPTER
     ADAPTER --> DB
+    ADAPTER --> MAIL
+    UI --> AI
+    AI --> DB
+    AI --> ARK
 ```
 
 架构中的关键约束是依赖单向：页面不直接访问 Supabase，业务 Store 不感知 Token，云同步也不能成为本地写入的前置条件。
@@ -137,7 +154,7 @@ sequenceDiagram
     S->>L: 持久化完整快照
     L-->>S: 本地写入成功
     S-->>UI: 更新响应式状态
-    S-->>C: 标记 dirty（账号同步完成后接入）
+    S-->>C: 标记 dirty
     C-->>C: 防抖、单飞、revision 检查
     Note over C: 失败只改变同步状态，不回滚本地编辑
 ```
@@ -178,11 +195,12 @@ Snapshot
 
 ### 5.2 页面信息层级
 
-首页被重新组织为三层：
+首页被重新组织为四层：
 
-1. **一级信息**：当前成长阶段、今日提醒和 AI 成长助手；
+1. **一级信息**：当前成长阶段和今日提醒；
 2. **二级操作**：分类、全部资源、收藏和今日收录统计；
-3. **三级内容**：实用工具、最近收录、热门主题、精选资源、我的收藏五个 Tab。
+3. **核心内容**：实用工具、最近收录、热门主题、精选资源、我的收藏五个 Tab；
+4. **辅助能力**：站内 AI 成长助手放在页面底部，不抢占核心内容入口。
 
 这次调整解决了首页区块纵向堆叠、入口互相竞争的问题。移动端的 Tab 可以横向滚动，桌面端则平均分布。
 
@@ -421,21 +439,19 @@ Vibe Coding 常见风险是：每次改动都很快，但 AI 不会天然记住�
 
 ## 8. 测试与质量保障
 
-### 8.1 本次文档生成时的实测结果
+### 8.1 最近一次实测结果
 
-2026-08-18 在当前工作区执行：
+2026-08-19 在当前工作区执行：
 
 | 检查项 | 结果 | 说明 |
 |---|---|---|
-| `npm test` | **PASS** | 57/57 通过，0 失败，约 1.22 秒 |
-| `npm run build` | **PASS** | Vite 转换 1585 个模块，约 1.31 秒 |
-| HTML 产物 | **PASS** | `dist/index.html` 0.46 kB，gzip 0.35 kB |
-| CSS 产物 | **PASS** | 84.39 kB，gzip 13.29 kB |
-| JS 产物 | **PASS** | 207.12 kB，gzip 74.40 kB |
-| `cargo test` | **未执行** | 当前环境未安装或未暴露 `cargo` 命令 |
-| Supabase pgTAP | **未执行** | 本次未启动本地 Supabase 测试环境；SQL 文件计划 27 项断言 |
+| `npm test` | **PASS** | 129/129 通过，0 失败 |
+| `npm run build` | **PASS** | Vite 生产构建成功 |
+| HTML/CSS/JS 产物 | **PASS** | 生产资源已生成，体积在构建日志中持续检查 |
+| `cargo test` | **PASS** | Rust 9/9 通过 |
+| Supabase pgTAP | **PASS** | 账号同步与 AI 配额共 55 项断言通过 |
 
-历史 Review 记录显示，Tauri 存储任务曾完成 `cargo fmt --check`、`cargo check`、Rust 8/8 测试、当时的 Node 45/45 测试和生产构建。但正式发布前仍应在目标构建环境重新执行，而不只依赖历史结果。
+此外，`cargo fmt --check`、`cargo check`、Node 语法检查和 Git diff 检查均已通过。
 
 ### 8.2 当前测试分层
 
@@ -445,9 +461,11 @@ Vibe Coding 常见风险是：每次改动都很快，但 AI 不会天然记住�
 | 账号基础 | `tests/account-foundations.test.js` | 配置、错误、快照、诊断和脱敏 |
 | 数据空间 | `tests/data-spaces.test.js` | 隔离、恢复、设备 ID 和性能边界 |
 | 云适配器 | `tests/cloud-adapters.test.js` | OTP、Session、远端快照、CAS 和 deadline |
+| AI 客户端 | `tests/ai-assistant-client.test.js` | Session、游客标识、单飞、deadline 和错误映射 |
+| AI 网关 | `tests/ai-function-core.test.js` | 输入、CORS、身份、配额编排和火山方舟适配 |
 | Tauri 适配 | `tests/tauri-storage.test.js` | Stronghold、原生桥接和错误映射 |
 | Rust 原生层 | `cargo test` | 原子写、salt、隔离和文件边界 |
-| 数据库权限 | `supabase/tests/account_sync.sql` | RLS、权限、创建竞态和 revision CAS |
+| 数据库权限 | `supabase/tests/account_sync.sql`、`ai_usage_quota.sql` | RLS、CAS、配额权限和真实竞态 |
 | 生产构建 | `npm run build` | Vue 模板、依赖和打包完整性 |
 | 人工冒烟 | 关键视口与核心流程 | 验证真实页面交互和视觉边界 |
 
@@ -469,31 +487,24 @@ cargo test --manifest-path src-tauri/Cargo.toml
 npm run tauri build
 ```
 
-启用云同步后，还需要在隔离的 Supabase 环境执行数据库迁移与测试，并完成人工双客户端冲突验证。
+云同步发布前还应在隔离环境执行数据库权限测试，并完成人工双客户端冲突验证。
 
 ## 9. 发布方案
 
 ### 9.1 Web 发布
 
-仓库已包含 `vercel.json`：
-
-```json
-{
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "framework": "vite"
-}
-```
+Web 版本已部署到腾讯云 EdgeOne Pages，正式地址为 [www.nurtureprimer.com](https://www.nurtureprimer.com/)。
 
 推荐流程：
 
 1. 在干净环境执行 `npm ci`、`npm test` 和 `npm run build`；
-2. 使用 Preview 环境验证首页、资源库、导入导出和移动端布局；
-3. 检查浏览器控制台、静态资源和缓存行为；
-4. 将通过验证的同一提交提升到 Production；
-5. 若出现回归，回滚到上一份已验证的静态构建。
+2. EdgeOne 从 GitHub `main` 分支自动构建 `dist`；
+3. 使用 Preview 环境验证首页、资源库、导入导出和移动端布局；
+4. 检查浏览器控制台、静态资源和缓存行为；
+5. 将通过验证的同一提交提升到 Production；
+6. 若出现回归，回滚到上一份已验证的静态构建。
 
-当前仓库具备 Vercel 静态发布配置，但本文生成过程中没有访问或验证线上生产环境，因此不对线上状态作额外声明。
+EdgeOne 同时负责 CDN、HTTPS 证书和 HTTP 到 HTTPS 跳转；域名解析由腾讯云 DNSPod 管理。
 
 ### 9.2 Tauri 桌面发布
 
@@ -507,7 +518,7 @@ Tauri 配置定义了 1200 × 800 默认窗口和全平台 Bundle 目标。桌�
 
 ### 9.3 Supabase 与云同步发布
 
-云能力需要比静态 Web 更严格的顺序：
+云能力按以下顺序发布：
 
 1. 先部署数据库迁移、RLS 和 CAS 函数；
 2. 验证匿名用户无权读取或写入快照；
@@ -517,12 +528,14 @@ Tauri 配置定义了 1200 × 800 默认窗口和全平台 Bundle 目标。桌�
 6. 使用两个浏览器或设备验证首次迁移、离线修改、revision 冲突和三种解决策略；
 7. 验证完成后再逐步放量。
 
-计划使用的前端配置包括：
+生产环境使用的前端配置包括：
 
 ```text
 VITE_SYNC_ENABLED
 VITE_SUPABASE_URL
 VITE_SUPABASE_PUBLISHABLE_KEY
+VITE_AI_ENABLED
+VITE_AI_REQUEST_TIMEOUT_MS
 VITE_TELEMETRY_ENABLED
 VITE_TELEMETRY_ENDPOINT
 ```
@@ -538,7 +551,9 @@ VITE_TELEMETRY_ENDPOINT
 | 2026-07-30 | 视觉焕新规格完成 | 从后台工具感转向清新、亲和的家庭成长体验 |
 | 2026-07-30 后 | 功能与质量加固 | 增加 Tab、安全边界、疫苗攻略、生长曲线和自动测试 |
 | 2026-07-31 | 账号同步规格 | 确立本地优先、数据空间、RLS、CAS 和渐进式同步架构 |
-| 当前 | 本地版持续可用 | Node 测试和 Web 构建通过；云同步端到端链路仍在推进 |
+| 2026-08-19 | Web 正式上线 | EdgeOne Pages、腾讯云域名、DNSPod、Supabase 与 Resend 完成联调 |
+| 2026-08-19 | 站内 AI 改造 | 增加 Edge Function AI 网关、每日额度和火山方舟适配 |
+| 当前 | 本地与云端均可用 | 未登录保持本地优先，登录后支持账号隔离和跨设备同步 |
 
 ## 11. Vibe Coding 带来的收益
 
@@ -578,16 +593,12 @@ AI 可以建议架构，但“是否需要登录”“哪些数据允许上传�
 
 ## 13. 下一步计划
 
-按当前设计，建议依次完成：
+下一阶段重点：
 
-1. 同步状态机、debounce、单飞、退避和跨标签锁；
-2. revision 决策矩阵、首次迁移和冲突恢复副本；
-3. 应用账号门面、Session 恢复与账号切换生命周期；
-4. OTP 登录、同步状态、冲突和恢复 UI；
-5. 精确 Tauri CSP、环境示例和部署文档；
-6. Web、Tauri、数据库和双客户端全链路验证；
-7. 完成未实现快捷工具，或在正式发布前隐藏占位入口；
-8. 建立 CI，让 Node、Rust、数据库测试和生产构建自动成为合并门禁。
+1. 补齐精确 Tauri CSP、环境示例和部署文档；
+2. 完成 Tauri、数据库和双客户端全链路验证；
+3. 完成未实现快捷工具，或隐藏仍在规划中的占位入口；
+4. 建立 CI，让 Node、Rust、数据库测试和生产构建成为合并门禁。
 
 ## 14. 分享结语
 
@@ -613,9 +624,12 @@ AI 可以建议架构，但“是否需要登录”“哪些数据允许上传�
 | 数据空间 | `src/data/dataSpaceRepository.js` |
 | Tauri 原生层 | `src-tauri/src/lib.rs` |
 | 云端认证 | `src/account/authAdapter.js`、`src/account/supabaseClient.js` |
+| 账号与同步 UI | `src/components/AccountCenter.vue`、`src/account/accountSyncFacade.js` |
+| 同步协调 | `src/sync/syncCoordinator.js`、`src/sync/crossTabLock.js` |
 | 云端快照 | `src/sync/cloudSnapshotRepository.js` |
+| 站内 AI | `src/ai/aiAssistantClient.js`、`supabase/functions/ai-growth-assistant/` |
+| AI 配额 | `supabase/migrations/202608190002_ai_usage_quota.sql` |
 | 数据库迁移 | `supabase/migrations/202607310001_account_sync.sql` |
 | 自动测试 | `tests/`、`supabase/tests/account_sync.sql` |
-| Web 发布 | `vercel.json` |
+| Web 构建 | `package.json`、`vite.config.js`；产物由 EdgeOne Pages 托管 |
 | Tauri 发布 | `src-tauri/tauri.conf.json` |
-

@@ -53,7 +53,10 @@ otp_length = 6
 otp_expiry = 600
 
 [edge_runtime]
-enabled = false
+enabled = true
+
+[functions.ai-growth-assistant]
+verify_jwt = false
 
 [analytics]
 enabled = false

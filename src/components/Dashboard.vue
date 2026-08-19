@@ -78,10 +78,6 @@
       </button>
     </div>
 
-    <div class="ai-search-full">
-      <AISearch />
-    </div>
-
     <section class="dashboard-content-hub" aria-label="育儿内容导航">
       <div class="content-tabs" role="tablist" aria-label="育儿内容分类">
         <button
@@ -235,6 +231,10 @@
         </div>
       </transition>
     </section>
+
+    <div class="ai-search-full">
+      <AISearch />
+    </div>
 
     <VaccineGuide
       :visible="showVaccineGuide"
@@ -858,13 +858,6 @@ function openLink(link) {
   flex-direction: column;
 }
 
-.ai-search-full {
-  margin-bottom: 1.5rem;
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  box-shadow: var(--shadow-md);
-}
-
 .quick-actions {
   display: flex;
   flex-direction: column;
@@ -1315,7 +1308,7 @@ function openLink(link) {
 }
 
 .ai-search-full {
-  margin-bottom: 1rem;
+  margin-top: 1rem;
   border: 0;
   border-radius: var(--radius-2xl);
   box-shadow: var(--shadow-md);

@@ -17,22 +17,30 @@ import {
 import { createDiagnosticStore } from './observability/diagnostics.js'
 import { createCloudSnapshotRepository } from './sync/cloudSnapshotRepository.js'
 import { createSyncCoordinator } from './sync/syncCoordinator.js'
+import { createAiAssistantClient, AI_ASSISTANT_CLIENT_KEY } from './ai/aiAssistantClient.js'
+import { loadAiConfig } from './ai/config.js'
 
 const syncConfig = loadSyncConfig(import.meta.env, {
+  isProduction: import.meta.env.PROD
+})
+const aiConfig = loadAiConfig(import.meta.env, {
   isProduction: import.meta.env.PROD
 })
 const diagnostics = createDiagnosticStore({
   appVersion: import.meta.env.VITE_APP_VERSION || '1.0.0'
 })
+const sessionStorage = isTauriEnvironment()
+  ? createTauriSessionStorage()
+  : undefined
+const supabaseClientConfig = syncConfig.isSyncAvailable
+  ? syncConfig
+  : aiConfig.clientConfig
+const clientProvider = createSupabaseClientProvider({
+  config: supabaseClientConfig,
+  storage: sessionStorage
+})
 
 async function createSyncServices() {
-  const sessionStorage = isTauriEnvironment()
-    ? createTauriSessionStorage()
-    : undefined
-  const clientProvider = createSupabaseClientProvider({
-    config: syncConfig,
-    storage: sessionStorage
-  })
   const authAdapter = createAuthAdapter({ clientProvider })
   const deviceMetadata = await store.getOrCreateDeviceMetadata()
   const cloudRepository = createCloudSnapshotRepository({
@@ -54,7 +62,12 @@ const accountSyncFacade = createAccountSyncFacade({
   createServices: createSyncServices,
   diagnostics
 })
+const aiAssistantClient = createAiAssistantClient({
+  config: aiConfig,
+  clientProvider
+})
 
 createApp(App)
   .provide(ACCOUNT_SYNC_FACADE_KEY, accountSyncFacade)
+  .provide(AI_ASSISTANT_CLIENT_KEY, aiAssistantClient)
   .mount('#app')
