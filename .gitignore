@@ -7,3 +7,5 @@ src-tauri/target/
 *.log
 .vscode/
 .vercel/
+supabase/.branches/
+supabase/.temp/

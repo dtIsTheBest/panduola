@@ -1,25 +1,31 @@
 <template>
   <div class="link-list">
     <div class="link-list-header">
-      <h2 class="link-list-title">
-        <component :is="getIcon(category?.icon || 'Link')" :size="20" />
-        {{ category?.name || '全部链接' }}
-      </h2>
-      <div class="header-actions">
-        <button 
-          class="btn btn-secondary btn-sm" 
-          :class="{ active: showFavoritesOnly }"
-          @click="showFavoritesOnly = !showFavoritesOnly"
-        >
-          <Star :size="14" :fill="showFavoritesOnly ? 'currentColor' : 'none'" /> 
-          {{ showFavoritesOnly ? '全部' : '收藏' }}
+      <div class="link-list-title-row">
+        <button class="btn btn-secondary btn-sm back-btn" aria-label="返回概览" title="返回概览" @click="$emit('back')">
+          <ArrowLeft :size="16" />
+          <span>返回概览</span>
         </button>
-        <button class="btn btn-primary btn-sm" @click="$emit('add-link')">
-          <Plus :size="16" /> 添加链接
+        <div class="link-list-heading">
+          <h2 class="link-list-title">
+            <component :is="getIcon(category?.icon || 'Link')" :size="20" />
+            {{ getTitle() }}
+          </h2>
+          <p class="link-list-summary">{{ getSummary() }}</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button
+          class="btn btn-secondary btn-sm"
+          :class="{ active: favoritesActive }"
+          @click="toggleFavoritesFilter"
+        >
+          <Star :size="14" :fill="favoritesActive ? 'currentColor' : 'none'" />
+          {{ favoritesActive ? '查看全部' : '只看收藏' }}
         </button>
       </div>
     </div>
-    
+
     <div v-if="filteredLinks.length > 0" class="links-container">
       <div
         v-for="link in filteredLinks"
@@ -27,16 +33,18 @@
         class="link-card"
       >
         <div class="link-card-inner">
-          <div class="link-content" @click="openLink(link)">
+          <div class="link-content" role="link" tabindex="0" @click="openLink(link)" @keydown.enter.self.prevent="openLink(link)">
             <div class="link-favicon" :style="{ backgroundColor: getCategoryColor(link.categoryId) + '15' }">
               <Globe :size="20" :style="{ color: getCategoryColor(link.categoryId) }" />
             </div>
             <div class="link-info">
               <div class="link-title-row">
                 <h3 class="link-title">{{ link.title }}</h3>
-                <button 
-                  class="btn btn-link favorite-btn" 
+                <span v-if="link.isDefault" class="link-tag tag-default">精选</span>
+                <button
+                  class="btn btn-link favorite-btn"
                   @click.stop="toggleFavorite(link)"
+                  :aria-label="link.favorite ? `取消收藏 ${link.title}` : `收藏 ${link.title}`"
                   :title="link.favorite ? '取消收藏' : '收藏'"
                 >
                   <Star :size="16" :fill="link.favorite ? 'currentColor' : 'none'" :class="{ filled: link.favorite }" />
@@ -62,52 +70,66 @@
             <ExternalLink :size="16" class="link-external" />
           </div>
           <div class="link-actions">
-            <button class="btn btn-secondary btn-sm action-btn" @click.stop="$emit('edit-link', link)" title="编辑">
+            <button class="btn btn-secondary btn-sm action-btn" :aria-label="`编辑 ${link.title}`" @click.stop="$emit('edit-link', link)" title="编辑">
               <Edit :size="14" />
+              <span>编辑</span>
             </button>
-            <button class="btn btn-danger btn-sm action-btn" @click.stop="$emit('delete-link', link)" title="删除">
+            <button class="btn btn-danger btn-sm action-btn" :aria-label="`删除 ${link.title}`" @click.stop="$emit('delete-link', link)" title="删除">
               <Trash2 :size="14" />
+              <span>删除</span>
             </button>
           </div>
         </div>
         <div class="link-card-glow" v-if="link.favorite"></div>
       </div>
     </div>
-    
+
     <div v-else class="empty-state">
       <Link :size="64" class="text-gray-300" />
-      <h3>{{ searchQuery ? '未找到匹配的链接' : showFavoritesOnly ? '暂无收藏' : '暂无链接' }}</h3>
+      <h3>{{ searchQuery ? '没有找到匹配资源' : favoritesActive ? '还没有收藏资源' : '这里还没有资源' }}</h3>
       <p>
-        {{ searchQuery ? '尝试使用其他关键词搜索' : showFavoritesOnly ? '点击链接旁的星星图标收藏' : '点击上方按钮添加第一个链接' }}
+        {{ searchQuery ? '试试更短的关键词，或搜索标签名称' : favoritesActive ? '在资源卡片上点击星标即可收藏' : '添加常用网站或资料，方便以后快速查找' }}
       </p>
+      <button v-if="!searchQuery" class="btn btn-primary empty-action" @click="favoritesActive ? toggleFavoritesFilter() : $emit('add-link')">
+        <component :is="favoritesActive ? Link : Plus" :size="16" />
+        {{ favoritesActive ? '浏览全部资源' : '添加第一个资源' }}
+      </button>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
-import { Plus, Globe, ExternalLink, Edit, Trash2, Link, Star, Clock, Folder } from 'lucide-vue-next'
-import { store, AGE_STAGES } from '@/data/store'
+import { Plus, Globe, ExternalLink, Edit, Trash2, Link, Star, Clock, Folder, ArrowLeft } from 'lucide-vue-next'
+import { store } from '@/data/store'
+import { openExternalLink } from '@/utils/externalLinks'
 
 const props = defineProps({
   category: Object,
   searchQuery: String,
-  ageStages: Array
+  ageStages: Array,
+  filterMode: String
 })
 
-defineEmits(['add-link', 'edit-link', 'delete-link'])
+const emit = defineEmits(['add-link', 'edit-link', 'delete-link', 'back', 'filter-change'])
 
 const showFavoritesOnly = ref(false)
+const favoritesActive = computed(() => props.filterMode === 'favorites' || showFavoritesOnly.value)
 
 const filteredLinks = computed(() => {
   let links = props.category
-    ? store.getLinksByCategory(props.category.id)
-    : store.links
-  
-  if (showFavoritesOnly.value) {
+    ? [...store.getLinksByCategory(props.category.id)]
+    : [...store.links]
+
+  if (favoritesActive.value) {
     links = links.filter(l => l.favorite)
   }
-  
+
+  if (props.filterMode === 'today') {
+    const today = new Date().setHours(0, 0, 0, 0)
+    links = links.filter(l => l.createdAt >= today)
+  }
+
   if (props.searchQuery) {
     const query = props.searchQuery.toLowerCase()
     links = links.filter(
@@ -116,14 +138,14 @@ const filteredLinks = computed(() => {
            l.tags.some(t => t.toLowerCase().includes(query))
     )
   }
-  
+
   if (props.ageStages && props.ageStages.length > 0) {
     links = links.filter(l => {
       const linkStages = l.ageStages || []
-      return linkStages.some(stage => props.ageStages.includes(stage))
+      return linkStages.length === 0 || linkStages.some(stage => props.ageStages.includes(stage))
     })
   }
-  
+
   return links.sort((a, b) => b.createdAt - a.createdAt)
 })
 
@@ -132,24 +154,56 @@ function getIcon(iconName) {
   return iconMap[iconName] || Link
 }
 
+function getTitle() {
+  if (favoritesActive.value) return '我的收藏'
+  if (props.filterMode === 'today') return '今日收录'
+  return props.category?.name || '全部资源'
+}
+
+function getSummary() {
+  const countText = `共 ${filteredLinks.value.length} 条资源`
+  if (props.searchQuery) return `${countText} · 当前搜索“${props.searchQuery}”`
+  if (favoritesActive.value) return `${countText} · 只显示已收藏内容`
+  if (props.ageStages?.length) return `${countText} · 已按成长阶段筛选`
+  if (props.category) return `${countText} · 当前分类`
+  return `${countText} · 点击卡片即可打开`
+}
+
 function getCategoryColor(categoryId) {
   const category = store.getCategoryById(categoryId)
   return category?.color || '#6366f1'
 }
 
 function formatVisitCount(count) {
-  if (!count || count === 0) return '未访问'
+  if (!count || count === 0) return '尚未访问'
   if (count === 1) return '访问 1 次'
   return `访问 ${count} 次`
 }
 
 async function toggleFavorite(link) {
-  await store.toggleFavorite(link.id)
+  try {
+    await store.toggleFavorite(link.id)
+  } catch {
+    alert('收藏状态保存失败，请稍后重试')
+  }
 }
 
 function openLink(link) {
-  store.recordVisit(link.id)
-  window.open(link.url, '_blank')
+  if (!openExternalLink(link.url)) {
+    alert('该链接地址不安全或格式无效')
+    return
+  }
+  store.recordVisit(link.id).catch(() => {
+    console.warn('链接已打开，但访问次数保存失败')
+  })
+}
+
+function toggleFavoritesFilter() {
+  if (props.filterMode === 'favorites') {
+    emit('filter-change', '')
+    return
+  }
+  showFavoritesOnly.value = !showFavoritesOnly.value
 }
 </script>
 
@@ -165,6 +219,16 @@ function openLink(link) {
   margin-bottom: 1rem;
 }
 
+.link-list-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.back-btn {
+  padding: 0.375rem;
+}
+
 .link-list-title {
   display: flex;
   align-items: center;
@@ -172,6 +236,7 @@ function openLink(link) {
   font-size: 1.125rem;
   font-weight: 600;
   color: var(--text-primary);
+  margin: 0;
 }
 
 .header-actions {
@@ -210,12 +275,7 @@ function openLink(link) {
   right: 0;
   height: 3px;
   background: linear-gradient(90deg, #f59e0b, #f97316, #f59e0b);
-  animation: glow 2s ease-in-out infinite;
-}
-
-@keyframes glow {
-  0%, 100% { opacity: 0.5; }
-  50% { opacity: 1; }
+  opacity: 0.9;
 }
 
 .link-content {
@@ -250,6 +310,23 @@ function openLink(link) {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.link-tag {
+  font-size: 0.625rem;
+  padding: 0.125rem 0.375rem;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+.tag-default {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.tag-custom {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #10b981;
 }
 
 .link-title {
@@ -362,26 +439,282 @@ function openLink(link) {
     align-items: stretch;
     gap: 0.5rem;
   }
-  
+
   .header-actions {
     justify-content: flex-end;
   }
-  
+
   .link-content {
     padding: 0.75rem;
   }
-  
+
   .link-favicon {
     width: 36px;
     height: 36px;
   }
-  
+
   .link-title {
     font-size: 0.875rem;
   }
-  
+
   .link-description {
     font-size: 0.75rem;
+  }
+}
+
+.link-list {
+  width: 100%;
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: 0;
+}
+
+.link-list-header {
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), var(--primary-soft));
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.link-list-title-row {
+  min-width: 0;
+}
+
+.back-btn {
+  flex: 0 0 auto;
+  padding: 0.4rem 0.65rem;
+  white-space: nowrap;
+}
+
+.link-list-heading {
+  min-width: 0;
+}
+
+.link-list-title {
+  min-width: 0;
+  font-size: 1.08rem;
+  font-weight: 750;
+  color: var(--text-primary);
+}
+
+.link-list-title :deep(svg) {
+  color: var(--primary-dark);
+}
+
+.link-list-summary {
+  margin-top: 0.18rem;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.header-actions {
+  flex-wrap: wrap;
+}
+
+.header-actions .active {
+  color: #7a550b;
+  background-color: var(--warm-soft);
+  border-color: rgba(242, 173, 74, 0.28);
+}
+
+.links-container {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 0.85rem;
+}
+
+.link-card {
+  border-radius: var(--radius-xl);
+}
+
+.link-card-inner {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  background: linear-gradient(145deg, #ffffff, var(--surface-soft));
+  border-color: rgba(220, 235, 230, 0.96);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.link-card:hover .link-card-inner {
+  border-color: rgba(40, 127, 116, 0.2);
+  box-shadow: var(--shadow-md);
+}
+
+.link-card-glow {
+  z-index: 1;
+  height: 4px;
+  background: linear-gradient(90deg, var(--warm-color), var(--accent-color));
+}
+
+.link-content {
+  flex: 1;
+  align-items: flex-start;
+  min-height: 88px;
+  padding: 1rem 1.05rem;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+}
+
+.link-content:focus-visible {
+  outline: 2px solid var(--primary-dark);
+  outline-offset: -4px;
+}
+
+.link-favicon {
+  width: 48px;
+  height: 48px;
+  border-radius: 1rem;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.74);
+}
+
+.link-card:hover .link-favicon {
+  transform: translateY(-1px) scale(1.04);
+}
+
+.link-title {
+  font-size: 0.96rem;
+  font-weight: 700;
+}
+
+.link-description {
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.favorite-btn {
+  width: 34px;
+  min-height: 34px;
+  height: 34px;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  box-shadow: none;
+}
+
+.favorite-btn:hover {
+  color: #7a550b;
+  background-color: var(--warm-soft);
+}
+
+.favorite-btn .filled {
+  color: #9a6508;
+}
+
+.link-tag {
+  padding: 0.17rem 0.44rem;
+  font-weight: 650;
+}
+
+.tag-default {
+  color: var(--primary-dark);
+  background-color: var(--primary-soft);
+}
+
+.link-actions {
+  justify-content: flex-end;
+  gap: 0.4rem;
+  padding: 0.55rem 1rem;
+  background-color: rgba(237, 245, 242, 0.72);
+}
+
+.action-btn {
+  width: auto;
+  min-height: 34px;
+  height: 34px;
+  padding: 0 0.6rem;
+}
+
+.empty-state {
+  min-height: 360px;
+  padding: 3rem 1rem;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.94), var(--surface-soft));
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.empty-state :deep(svg) {
+  color: var(--primary-light);
+}
+
+.empty-state h3 {
+  font-weight: 700;
+}
+
+.empty-action {
+  margin-top: 1rem;
+}
+
+@media (max-width: 1080px) {
+  .links-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .link-list-header {
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+
+  .link-list-title-row {
+    align-items: flex-start;
+  }
+
+  .header-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .header-actions .btn {
+    width: 100%;
+  }
+
+  .link-content {
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.8rem;
+  }
+
+  .link-favicon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .link-external {
+    display: none;
+  }
+
+  .link-actions {
+    padding: 0.5rem 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .link-list-title {
+    font-size: 0.98rem;
+  }
+
+  .link-title-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .link-title {
+    max-width: calc(100% - 42px);
+    white-space: normal;
+  }
+
+  .favorite-btn {
+    align-self: flex-start;
   }
 }
 </style>

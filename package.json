@@ -5,12 +5,15 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test": "node --test",
     "preview": "vite preview",
     "tauri": "tauri"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.111.0",
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/cli": "^2.11.4",
+    "@tauri-apps/plugin-stronghold": "^2.3.1",
     "lucide-vue-next": "^0.453.0",
     "vue": "^3.5.0"
   },

@@ -6,12 +6,15 @@
         v-model="searchQuery"
         type="text"
         class="search-input"
+        aria-label="搜索资源"
         :placeholder="placeholder"
         @input="handleInput"
       />
       <button
         v-if="searchQuery"
         class="search-clear"
+        aria-label="清除搜索内容"
+        title="清除搜索内容"
         @click="clear"
       >
         <X :size="14" />
@@ -28,7 +31,7 @@ const props = defineProps({
   modelValue: String,
   placeholder: {
     type: String,
-    default: '搜索链接、标签...'
+    default: '搜索标题、说明或标签'
   }
 })
 
@@ -52,50 +55,80 @@ function clear() {
 
 <style scoped>
 .search-bar {
-  padding: 0.75rem 0;
+  flex: 1;
+  min-width: min(100%, 260px);
+  padding: 0;
 }
 
 .search-input-wrapper {
   position: relative;
   display: flex;
   align-items: center;
+  min-height: 44px;
+  background-color: var(--surface-soft);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .search-icon {
   position: absolute;
-  left: 0.875rem;
-  color: var(--text-secondary);
+  left: 0.95rem;
+  color: var(--primary-dark);
+  pointer-events: none;
 }
 
 .search-input {
   width: 100%;
-  padding: 0.625rem 0.875rem 0.625rem 2.5rem;
+  min-width: 0;
+  padding: 0.68rem 2.7rem 0.68rem 2.6rem;
   font-size: 0.875rem;
-  border: 1px solid var(--border-color);
-  border-radius: 9999px;
-  background-color: var(--card-bg);
-  transition: all 0.2s ease;
+  color: var(--text-primary);
+  border: 0;
+  border-radius: inherit;
+  outline: 0;
+  background-color: transparent;
 }
 
-.search-input:focus {
-  outline: none;
+.search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.search-input-wrapper:focus-within {
+  background-color: white;
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  box-shadow: 0 0 0 4px var(--focus-ring);
+}
+
+.search-input:focus-visible {
+  outline: 2px solid var(--primary-dark);
+  outline-offset: 3px;
 }
 
 .search-clear {
   position: absolute;
-  right: 0.75rem;
-  background: none;
-  border: none;
+  right: 0.45rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background-color: white;
+  border: 1px solid var(--border-color);
   color: var(--text-secondary);
   cursor: pointer;
-  padding: 0.25rem;
+  padding: 0;
   border-radius: 50%;
-  transition: background-color 0.2s ease;
+  transition:
+    color var(--transition-fast),
+    background-color var(--transition-fast);
 }
 
 .search-clear:hover {
-  background-color: var(--border-color);
+  color: var(--danger-dark);
+  background-color: #fff1f2;
 }
 </style>

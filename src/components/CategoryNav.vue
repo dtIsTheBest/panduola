@@ -1,25 +1,51 @@
 <template>
   <div class="category-nav">
-    <div class="sidebar" :class="{ open: sidebarOpen }">
+    <div
+      class="sidebar"
+      :class="{ open: sidebarOpen }"
+      role="navigation"
+      aria-label="成长阶段筛选"
+      :inert="isMobile && !sidebarOpen"
+      :aria-hidden="isMobile && !sidebarOpen ? 'true' : undefined"
+      @keydown.esc.stop.prevent="closeSidebar"
+    >
       <div class="sidebar-header">
-        <button class="btn btn-secondary btn-sm sidebar-toggle" @click="toggleSidebar">
+        <button ref="closeButton" class="btn btn-secondary btn-sm sidebar-toggle" aria-label="关闭年龄阶段导航" title="关闭年龄阶段导航" @click="closeSidebar">
           <ChevronLeft :size="18" />
         </button>
-        <span class="sidebar-title">带娃百科</span>
+        <div class="sidebar-heading">
+          <span class="sidebar-title">成长阶段</span>
+          <span class="sidebar-caption">选择后自动筛选内容</span>
+        </div>
       </div>
       
       <div class="age-stage-section">
         <div class="section-title">
-          <Users :size="14" />
-          <span>年龄阶段</span>
+          <ListFilter :size="14" />
+          <span>按年龄浏览</span>
         </div>
         <div class="age-stage-list">
-          <div
+          <button
+            type="button"
+            class="age-stage-item all-stage-item"
+            :class="{ active: selectedAgeStage === '' }"
+            :aria-pressed="selectedAgeStage === ''"
+            @click="selectAgeStage('')"
+          >
+            <Compass :size="16" />
+            <div class="stage-info">
+              <div class="stage-title">全部阶段</div>
+              <div class="stage-range">浏览所有资源</div>
+            </div>
+          </button>
+          <button
             v-for="stage in ageStages"
             :key="stage.id"
+            type="button"
             class="age-stage-item"
             :class="{ active: selectedAgeStage === stage.id }"
             @click="selectAgeStage(stage.id)"
+            :aria-pressed="selectedAgeStage === stage.id"
             :title="stage.description"
           >
             <component :is="getStageIcon(stage.id)" :size="16" />
@@ -27,240 +53,141 @@
               <div class="stage-title">{{ stage.title }}</div>
               <div class="stage-range">{{ stage.ageRange }}</div>
             </div>
-          </div>
-        </div>
-      </div>
-      
-      <div class="section-divider"></div>
-      
-      <div class="primary-categories">
-        <div
-          v-for="category in filteredCategories"
-          :key="category.id"
-          class="primary-category-item"
-          :class="{ active: selectedCategory?.id === category.id }"
-          @click="selectCategory(category)"
-        >
-          <component :is="getIcon(category.icon)" :style="{ color: category.color }" :size="20" />
-          <span>{{ category.name }}</span>
-          <span class="category-count">{{ getCategoryLinkCount(category) }}</span>
-        </div>
-      </div>
-      
-      <div class="sidebar-actions">
-        <button class="btn btn-secondary btn-sm" @click="$emit('manageCategories')">
-          <Settings :size="16" /> 管理分类
-        </button>
-      </div>
-    </div>
-    
-    <div class="sidebar-overlay" v-if="sidebarOpen && isMobile" @click="toggleSidebar"></div>
-    
-    <div class="content-area">
-      <div v-if="selectedCategory" class="subcategory-section">
-        <div class="subcategory-header">
-          <button class="btn btn-secondary btn-sm mobile-back" @click="selectedCategory = null">
-            <ArrowLeft :size="16" /> 返回
           </button>
-          <div class="subcategory-title-row">
-            <component :is="getIcon(selectedCategory.icon)" :style="{ color: selectedCategory.color }" :size="20" />
-            <span>{{ selectedCategory.name }}</span>
-          </div>
-        </div>
-        
-        <div v-if="selectedCategory.children && selectedCategory.children.length" class="subcategory-grid">
-          <div
-            v-for="child in selectedCategory.children"
-            :key="child.id"
-            class="subcategory-card"
-            :class="{ active: currentSubcategory?.id === child.id }"
-            @click="selectSubcategory(child)"
-          >
-            <div class="subcategory-icon" :style="{ backgroundColor: child.color + '15' }">
-              <component :is="getIcon(child.icon || 'Folder')" :style="{ color: child.color }" :size="24" />
-            </div>
-            <div class="subcategory-info">
-              <div class="subcategory-name">{{ child.name }}</div>
-              <div class="subcategory-count">{{ getCategoryLinkCount(child) }} 个链接</div>
-            </div>
-          </div>
-        </div>
-        
-        <div v-else class="subcategory-empty">
-          <FolderOpen :size="48" class="text-gray-300" />
-          <p>该分类下暂无子分类</p>
         </div>
       </div>
       
-      <div v-else class="welcome-section">
-        <div class="welcome-icon">
-          <Sparkles :size="48" />
-        </div>
-        <h2>欢迎使用潘多拉</h2>
-        <p>选择左侧年龄阶段，浏览对应阶段的育儿资源</p>
-        <div class="stats-row">
-          <div class="stat-item">
-            <div class="stat-value">{{ totalCategories }}</div>
-            <div class="stat-label">分类</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-value">{{ totalLinks }}</div>
-            <div class="stat-label">链接</div>
-          </div>
-        </div>
-      </div>
     </div>
+    
+    <div class="sidebar-overlay" v-if="sidebarOpen && isMobile" @click="closeSidebar"></div>
+    
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { 
-  ChevronLeft, ArrowLeft, Settings, Folder, FolderOpen, Sparkles, Users,
-  Baby, Heart, Home, BookOpen, Wrench, Utensils, Moon, TrendingUp,
-  GraduationCap, Syringe, Stethoscope, Activity, ShoppingBag, Building,
-  Users as UsersIcon, BookMarked, Headphones, Ruler, Calendar, Calculator,
-  Briefcase, School
+  ChevronLeft, Compass, ListFilter,
+  Baby, Wrench, Flower2, BookOpen, GraduationCap, Moon, Rocket, Sun, Award
 } from 'lucide-vue-next'
-import { store, AGE_STAGES } from '@/data/store'
+import { AGE_STAGES } from '@/data/store'
 
-const emit = defineEmits(['categoryChange', 'ageStageChange', 'manageCategories'])
+const emit = defineEmits(['ageStageChange'])
 
-const categories = ref(store.categories)
-const selectedCategory = ref(null)
-const currentSubcategory = ref(null)
 const selectedAgeStage = ref('')
-const sidebarOpen = ref(true)
-const isMobile = ref(false)
+const isMobile = ref(typeof window !== 'undefined' && window.innerWidth <= 768)
+const sidebarOpen = ref(!isMobile.value)
+const closeButton = ref(null)
+let previousFocus = null
 
 const ageStages = ref(AGE_STAGES)
 
-const iconMap = {
-  Baby, Heart, Home, BookOpen, Wrench, Utensils, Moon, TrendingUp,
-  GraduationCap, Syringe, Stethoscope, Activity, ShoppingBag, Building,
-  UsersIcon, BookMarked, Headphones, Ruler, Calendar, Calculator, Folder
-}
-
 const stageIcons = {
   'age0-1': Baby,
-  'age1-3': Baby,
-  'age3-6': Heart,
-  'age6-9': School,
-  'age9-12': School,
-  'age12-15': GraduationCap,
-  'age15-18': GraduationCap,
-  'age18-22': Briefcase,
-  'age22+': Briefcase
-}
-
-const filteredCategories = computed(() => {
-  if (!selectedAgeStage.value) {
-    return categories.value
-  }
-  
-  return categories.value.map(cat => {
-    const visibleChildren = cat.children.filter(child => {
-      const childStages = child.ageStages || []
-      return childStages.length === 0 || childStages.includes(selectedAgeStage.value)
-    })
-    
-    return {
-      ...cat,
-      children: visibleChildren
-    }
-  }).filter(cat => cat.children.length > 0)
-})
-
-const totalCategories = computed(() => {
-  let count = filteredCategories.value.length
-  for (const cat of filteredCategories.value) {
-    if (cat.children) count += cat.children.length
-  }
-  return count
-})
-
-const totalLinks = computed(() => {
-  if (!selectedAgeStage.value) {
-    return store.links.length
-  }
-  return store.links.filter(l => {
-    const linkStages = l.ageStages || []
-    return linkStages.length === 0 || linkStages.includes(selectedAgeStage.value)
-  }).length
-})
-
-function getIcon(iconName) {
-  return iconMap[iconName] || Folder
+  'age1-3': Wrench,
+  'age3-6': Flower2,
+  'age6-9': BookOpen,
+  'age9-12': GraduationCap,
+  'age12-15': Moon,
+  'age15-18': Rocket,
+  'age18-22': Sun,
+  'age22+': Award
 }
 
 function getStageIcon(stageId) {
   return stageIcons[stageId] || Baby
 }
 
-function toggleSidebar() {
-  sidebarOpen.value = !sidebarOpen.value
+function toggleSidebar(trigger) {
+  if (sidebarOpen.value) {
+    closeSidebar()
+  } else {
+    openSidebar(trigger)
+  }
 }
+
+function openSidebar(trigger) {
+  previousFocus = trigger instanceof HTMLElement ? trigger : document.activeElement
+  sidebarOpen.value = true
+  nextTick(() => closeButton.value?.focus())
+}
+
+function closeSidebar() {
+  sidebarOpen.value = false
+  nextTick(() => {
+    if (previousFocus instanceof HTMLElement) previousFocus.focus()
+    previousFocus = null
+  })
+}
+
+function clearSelection() {
+  selectedAgeStage.value = ''
+}
+
+defineExpose({ toggleSidebar, clearSelection })
 
 function selectAgeStage(stageId) {
   selectedAgeStage.value = selectedAgeStage.value === stageId ? '' : stageId
-  selectedCategory.value = null
-  currentSubcategory.value = null
   emit('ageStageChange', selectedAgeStage.value ? [selectedAgeStage.value] : [])
+  if (isMobile.value) closeSidebar()
 }
 
-function selectCategory(category) {
-  selectedCategory.value = category
-  currentSubcategory.value = null
-}
-
-function selectSubcategory(subcategory) {
-  currentSubcategory.value = subcategory
-}
-
-function getCategoryLinkCount(category) {
-  let count = store.getLinksByCategory(category.id).length
-  if (category.children) {
-    count += category.children.reduce((sum, child) => sum + store.getLinksByCategory(child.id).length, 0)
+function updateViewport() {
+  const nextIsMobile = window.innerWidth <= 768
+  if (nextIsMobile !== isMobile.value) {
+    sidebarOpen.value = !nextIsMobile
+    previousFocus = null
   }
-  return count
+  isMobile.value = nextIsMobile
 }
 
-if (typeof window !== 'undefined') {
-  isMobile.value = window.innerWidth < 768
-  window.addEventListener('resize', () => {
-    isMobile.value = window.innerWidth < 768
-    if (!isMobile.value) {
-      sidebarOpen.value = true
-    }
-  })
-}
+onMounted(() => {
+  window.addEventListener('resize', updateViewport)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateViewport)
+})
 </script>
 
 <style scoped>
 .category-nav {
-  display: flex;
-  min-height: calc(100vh - 140px);
+  position: relative;
 }
 
 .sidebar {
-  width: 240px;
-  background-color: var(--card-bg);
+  width: var(--sidebar-width);
+  background:
+    radial-gradient(circle at 15% 8%, rgba(103, 200, 185, 0.18), transparent 11rem),
+    linear-gradient(180deg, #ffffff 0%, #f8fcfa 100%);
   border-right: 1px solid var(--border-color);
   position: fixed;
   left: 0;
-  top: 60px;
-  bottom: 60px;
+  top: var(--header-height);
+  bottom: var(--footer-height);
   z-index: 50;
   overflow-y: auto;
   transition: transform 0.3s ease;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
 }
 
 .sidebar-header {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 1rem;
+  margin: 0.85rem 0.75rem 0.45rem;
+  padding: 0.75rem 0.8rem;
+  background: linear-gradient(135deg, var(--primary-soft), rgba(255, 245, 223, 0.72));
+  border: 1px solid rgba(103, 200, 185, 0.22);
+  border-radius: var(--radius-lg);
   border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-heading {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
 }
 
 .sidebar-toggle {
@@ -268,50 +195,97 @@ if (typeof window !== 'undefined') {
 }
 
 .sidebar-title {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--text-primary);
+  font-size: 0.92rem;
+  font-weight: 750;
+  color: var(--primary-dark);
+}
+
+.sidebar-caption {
+  margin-top: 0.08rem;
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  line-height: 1.35;
 }
 
 .age-stage-section {
-  padding: 0.5rem 0;
+  padding: 0.35rem 0.5rem 1rem;
 }
 
 .section-title {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.75rem;
-  font-weight: 600;
+  gap: 0.42rem;
+  padding: 0.55rem 0.65rem;
+  font-size: 0.76rem;
+  font-weight: 700;
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
 }
 
 .age-stage-list {
-  padding: 0 0.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  padding: 0 0.15rem;
+}
+
+.all-stage-item {
+  margin-bottom: 0.2rem;
+  background-color: rgba(255, 255, 255, 0.58);
+  border-color: var(--border-color);
 }
 
 .age-stage-item {
   display: flex;
   align-items: center;
-  gap: 0.625rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--radius-md);
+  width: 100%;
+  gap: 0.72rem;
+  min-height: 52px;
+  padding: 0.55rem 0.7rem;
+  font: inherit;
+  text-align: left;
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+    color var(--transition-fast),
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    box-shadow var(--transition-base),
+    transform var(--transition-fast);
   font-size: 0.8125rem;
   color: var(--text-secondary);
 }
 
+.age-stage-item > :deep(svg) {
+  flex: 0 0 auto;
+  box-sizing: content-box;
+  padding: 0.5rem;
+  color: var(--primary-color);
+  background-color: var(--primary-soft);
+  border-radius: 0.72rem;
+}
+
 .age-stage-item:hover {
-  background-color: var(--bg-color);
+  color: var(--text-primary);
+  background-color: rgba(255, 255, 255, 0.9);
+  border-color: var(--border-color);
+  box-shadow: var(--shadow-sm);
+  transform: translateX(2px);
 }
 
 .age-stage-item.active {
-  background-color: rgba(99, 102, 241, 0.1);
-  color: var(--primary-color);
+  background: linear-gradient(135deg, var(--primary-soft), #f3fbf8);
+  border-color: rgba(47, 158, 143, 0.28);
+  color: var(--primary-dark);
+  box-shadow: 0 8px 20px rgba(47, 158, 143, 0.11);
+}
+
+.age-stage-item.active > :deep(svg) {
+  color: white;
+  background: linear-gradient(135deg, var(--primary-light), var(--primary-color));
 }
 
 .age-stage-item .stage-info {
@@ -320,200 +294,17 @@ if (typeof window !== 'undefined') {
 }
 
 .stage-title {
-  font-size: 0.8125rem;
-  font-weight: 500;
+  font-size: 0.82rem;
+  font-weight: 650;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .stage-range {
-  font-size: 0.6875rem;
-  opacity: 0.7;
-  margin-top: 0.125rem;
-}
-
-.section-divider {
-  height: 1px;
-  background-color: var(--border-color);
-  margin: 0.5rem 0;
-}
-
-.primary-categories {
-  padding: 0.5rem;
-}
-
-.primary-category-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.625rem 0.75rem;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 0.875rem;
-}
-
-.primary-category-item:hover {
-  background-color: var(--bg-color);
-}
-
-.primary-category-item.active {
-  background-color: rgba(99, 102, 241, 0.1);
-  color: var(--primary-color);
-}
-
-.category-count {
-  margin-left: auto;
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  background-color: var(--bg-color);
-  padding: 0.125rem 0.5rem;
-  border-radius: 9999px;
-}
-
-.sidebar-actions {
-  padding: 1rem;
-  border-top: 1px solid var(--border-color);
-}
-
-.content-area {
-  flex: 1;
-  margin-left: 240px;
-  padding: 1rem;
-}
-
-.subcategory-section {
-  animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.subcategory-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-}
-
-.mobile-back {
-  display: none;
-}
-
-.subcategory-title-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.subcategory-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 0.75rem;
-}
-
-.subcategory-card {
-  background-color: var(--card-bg);
-  border-radius: var(--radius-lg);
-  padding: 1rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: 2px solid transparent;
-}
-
-.subcategory-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-}
-
-.subcategory-card.active {
-  border-color: var(--primary-color);
-  background-color: rgba(99, 102, 241, 0.05);
-}
-
-.subcategory-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 0.75rem;
-}
-
-.subcategory-name {
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 0.25rem;
-}
-
-.subcategory-count {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
-
-.subcategory-empty {
-  text-align: center;
-  padding: 3rem;
-  color: var(--text-secondary);
-}
-
-.welcome-section {
-  text-align: center;
-  padding: 3rem 1rem;
-}
-
-.welcome-icon {
-  width: 100px;
-  height: 100px;
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 1.5rem;
-  color: white;
-}
-
-.welcome-section h2 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 0.5rem;
-}
-
-.welcome-section p {
-  color: var(--text-secondary);
-  margin-bottom: 2rem;
-}
-
-.stats-row {
-  display: flex;
-  justify-content: center;
-  gap: 3rem;
-}
-
-.stat-item {
-  text-align: center;
-}
-
-.stat-value {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--primary-color);
-}
-
-.stat-label {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  margin-top: 0.25rem;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 0.06rem;
 }
 
 .sidebar-overlay {
@@ -524,6 +315,8 @@ if (typeof window !== 'undefined') {
   .sidebar {
     transform: translateX(-100%);
     width: 280px;
+    bottom: 0;
+    box-shadow: var(--shadow-xl);
   }
   
   .sidebar.open {
@@ -537,26 +330,18 @@ if (typeof window !== 'undefined') {
   .sidebar-overlay {
     display: block;
     position: fixed;
-    top: 0;
+    top: var(--header-height);
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: var(--overlay-color);
     z-index: 40;
   }
-  
-  .content-area {
-    margin-left: 0;
-    padding: 0.5rem;
-  }
-  
-  .mobile-back {
-    display: flex;
-  }
-  
-  .subcategory-grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 0.5rem;
+}
+
+@media (max-width: 480px) {
+  .sidebar {
+    width: min(86vw, 304px);
   }
 }
 </style>

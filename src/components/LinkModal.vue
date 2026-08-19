@@ -1,29 +1,31 @@
 <template>
-  <div v-if="visible" class="modal-overlay" @click.self="close">
-    <div class="modal-content">
+  <div v-if="visible" class="modal-overlay" @click.self="close" @keydown="handleDialogKeydown">
+    <div ref="dialog" class="modal-content" role="dialog" aria-modal="true" aria-labelledby="link-modal-title">
       <div class="modal-header">
-        <h2>{{ editLink ? '编辑链接' : '添加链接' }}</h2>
-        <button class="btn btn-secondary btn-sm" @click="close">
+        <h2 id="link-modal-title">{{ editLink ? '编辑资源' : '添加资源' }}</h2>
+        <button ref="closeButton" class="btn btn-secondary btn-sm" aria-label="关闭资源编辑弹窗" title="关闭" @click="close">
           <X :size="16" />
         </button>
       </div>
-      
+
       <div class="modal-body">
         <form @submit.prevent="submit">
           <div class="form-group">
-            <label class="form-label">标题 *</label>
+            <label class="form-label" for="link-title">标题 *</label>
             <input
+              id="link-title"
               v-model="form.title"
               type="text"
               class="form-input"
-              placeholder="输入链接标题"
+              placeholder="输入资源名称"
               required
             />
           </div>
-          
+
           <div class="form-group">
-            <label class="form-label">URL *</label>
+            <label class="form-label" for="link-url">网址 *</label>
             <input
+              id="link-url"
               v-model="form.url"
               type="url"
               class="form-input"
@@ -31,19 +33,20 @@
               required
             />
           </div>
-          
+
           <div class="form-group">
-            <label class="form-label">描述</label>
+            <label class="form-label" for="link-description">描述</label>
             <textarea
+              id="link-description"
               v-model="form.description"
               class="form-textarea"
-              placeholder="简要描述该链接的内容"
+              placeholder="简要说明这项资源能解决什么问题"
             ></textarea>
           </div>
-          
+
           <div class="form-group">
-            <label class="form-label">分类 *</label>
-            <select v-model="form.categoryId" class="form-select" required>
+            <label class="form-label" for="link-category">分类 *</label>
+            <select id="link-category" v-model="form.categoryId" class="form-select" required>
               <option value="">请选择分类</option>
               <optgroup v-for="category in categories" :key="category.id" :label="category.name">
                 <option
@@ -56,23 +59,25 @@
               </optgroup>
             </select>
           </div>
-          
+
           <div class="form-group">
-            <label class="form-label">适用年龄阶段（多选）</label>
+            <label class="form-label">适用成长阶段（可多选）</label>
             <div class="age-stage-selector">
-              <div
+              <button
                 v-for="stage in ageStages"
                 :key="stage.id"
+                type="button"
                 class="age-stage-option"
                 :class="{ active: form.ageStages.includes(stage.id) }"
+                :aria-pressed="form.ageStages.includes(stage.id)"
                 @click="toggleAgeStage(stage.id)"
               >
                 <div class="age-stage-title">{{ stage.title }}</div>
                 <div class="age-stage-range">{{ stage.ageRange }}</div>
-              </div>
+              </button>
             </div>
           </div>
-          
+
           <div class="form-group">
             <label class="form-label">标签</label>
             <div class="tag-input-container">
@@ -83,7 +88,7 @@
                   class="badge badge-secondary tag-item"
                 >
                   {{ tag }}
-                  <button type="button" @click="removeTag(tag)">
+                  <button type="button" :aria-label="`移除标签 ${tag}`" @click="removeTag(tag)">
                     <X :size="12" />
                   </button>
                 </span>
@@ -93,13 +98,14 @@
                   v-model="newTag"
                   type="text"
                   class="form-input tag-input"
+                  aria-label="输入新标签"
                   placeholder="输入标签后按回车添加"
                   @keydown.enter.prevent="addTag"
                 />
               </div>
             </div>
           </div>
-          
+
           <div class="form-actions">
             <button type="button" class="btn btn-secondary" @click="close">取消</button>
             <button type="submit" class="btn btn-primary">保存</button>
@@ -111,9 +117,11 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { X } from 'lucide-vue-next'
 import { store, generateId, AGE_STAGES } from '@/data/store'
+import { normalizeSafeExternalUrl } from '@/utils/externalLinks'
+import { useDialogFocus } from '@/composables/useDialogFocus'
 
 const props = defineProps({
   visible: Boolean,
@@ -122,8 +130,10 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'save'])
 
-const categories = ref(store.categories)
+const categories = computed(() => store.categories)
 const ageStages = ref(AGE_STAGES)
+const dialog = ref(null)
+const closeButton = ref(null)
 
 const form = ref({
   title: '',
@@ -139,8 +149,8 @@ const newTag = ref('')
 watch(() => props.visible, (val) => {
   if (val) {
     if (props.editLink) {
-      form.value = { 
-        ...props.editLink, 
+      form.value = {
+        ...props.editLink,
         tags: [...props.editLink.tags],
         ageStages: [...(props.editLink.ageStages || [])]
       }
@@ -155,6 +165,13 @@ watch(() => props.visible, (val) => {
       }
     }
   }
+})
+
+const { handleDialogKeydown } = useDialogFocus({
+  isVisible: () => props.visible,
+  dialogRef: dialog,
+  initialFocus: () => document.getElementById('link-title') || closeButton.value,
+  onEscape: close
 })
 
 function addTag() {
@@ -178,19 +195,32 @@ function toggleAgeStage(stageId) {
   }
 }
 
-function submit() {
+async function submit() {
+  const safeUrl = normalizeSafeExternalUrl(form.value.url)
+  if (!safeUrl) {
+    alert('链接仅支持 http:// 或 https:// 地址')
+    return
+  }
+
   const link = {
     ...form.value,
+    url: safeUrl,
     id: props.editLink?.id || generateId('l'),
-    createdAt: props.editLink?.createdAt || Date.now()
+    createdAt: props.editLink?.createdAt || Date.now(),
+    isDefault: props.editLink?.isDefault || false
   }
-  
-  if (props.editLink) {
-    store.updateLink(link.id, link)
-  } else {
-    store.addLink(link)
+
+  try {
+    if (props.editLink) {
+      await store.updateLink(link.id, link)
+    } else {
+      await store.addLink(link)
+    }
+  } catch {
+    alert('保存链接失败，请稍后重试')
+    return
   }
-  
+
   emit('save', link)
   close()
 }
@@ -206,12 +236,19 @@ function close() {
   align-items: center;
   justify-content: space-between;
   padding: 1rem 1.25rem;
+  background: linear-gradient(135deg, var(--primary-soft), #fffaf1);
   border-bottom: 1px solid var(--border-color);
 }
 
 .modal-header h2 {
   font-size: 1.125rem;
-  font-weight: 600;
+  font-weight: 750;
+  color: var(--text-primary);
+}
+
+.modal-header .btn {
+  width: 36px;
+  padding: 0;
 }
 
 .modal-body {
@@ -238,11 +275,22 @@ function close() {
 }
 
 .tag-item button {
-  background: none;
-  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
   cursor: pointer;
   padding: 0;
   color: var(--text-secondary);
+}
+
+.tag-item button:hover {
+  color: var(--danger-dark);
+  background-color: #fff1f2;
 }
 
 .tag-input-wrapper {
@@ -260,34 +308,43 @@ function close() {
 }
 
 .age-stage-option {
+  font: inherit;
+  color: var(--text-secondary);
   padding: 0.5rem 0.75rem;
-  background-color: var(--bg-color);
-  border-radius: var(--radius-md);
+  background-color: var(--surface-soft);
+  border-radius: var(--radius-lg);
   cursor: pointer;
-  transition: all 0.2s ease;
-  border: 2px solid transparent;
+  transition:
+    color var(--transition-fast),
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    transform var(--transition-fast);
+  border: 1px solid var(--border-color);
   text-align: center;
-  min-width: 100px;
+  min-width: 104px;
 }
 
 .age-stage-option:hover {
-  background-color: var(--border-color);
+  color: var(--primary-dark);
+  background-color: var(--primary-soft);
+  transform: translateY(-1px);
 }
 
 .age-stage-option.active {
-  background-color: rgba(99, 102, 241, 0.1);
+  background-color: var(--primary-soft);
   border-color: var(--primary-color);
-  color: var(--primary-color);
+  color: var(--primary-dark);
+  box-shadow: 0 0 0 2px rgba(40, 127, 116, 0.1);
 }
 
 .age-stage-title {
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 650;
 }
 
 .age-stage-range {
   font-size: 0.6875rem;
-  opacity: 0.7;
+  color: var(--text-muted);
   margin-top: 0.125rem;
 }
 
@@ -296,5 +353,26 @@ function close() {
   justify-content: flex-end;
   gap: 0.75rem;
   margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+@media (max-width: 480px) {
+  .modal-body {
+    padding: 1rem;
+  }
+
+  .age-stage-selector {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .age-stage-option {
+    min-width: 0;
+  }
+
+  .form-actions .btn {
+    flex: 1;
+  }
 }
 </style>
