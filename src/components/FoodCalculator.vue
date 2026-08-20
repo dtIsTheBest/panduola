@@ -14,13 +14,7 @@
       </header>
 
       <div class="food-body">
-        <section class="profile-bar" aria-label="计算对象和月龄">
-          <label class="child-field">
-            <span>当前孩子</span>
-            <select v-model="selectedChildId" class="form-input">
-              <option v-for="child in store.growthChildren" :key="child.id" :value="child.id">{{ child.name }}</option>
-            </select>
-          </label>
+        <section class="age-bar" aria-label="孩子月龄">
           <div class="age-field">
             <div class="age-heading">
               <span>当前月龄</span>
@@ -37,7 +31,7 @@
         <section class="stage-card" aria-labelledby="food-stage-title">
           <div class="stage-badge"><Baby :size="19" />{{ feedingStage.label }}</div>
           <div class="stage-copy">
-            <span>{{ selectedChildName }} · {{ ageMonths }} 月龄建议</span>
+            <span>{{ ageMonths }} 月龄建议</span>
             <h3 id="food-stage-title">{{ feedingStage.focus }}</h3>
           </div>
           <div class="stage-facts">
@@ -139,7 +133,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import {
   AlertTriangle, Apple, Baby, Bean, CalendarClock, Carrot, CheckCircle2, Circle,
   Drumstick, Egg, ExternalLink, FileText, Info, Milk, ShieldCheck, Soup, Sparkles,
@@ -154,7 +148,6 @@ import {
   getFeedingStage,
   getSafetyTips
 } from '@/data/complementaryFoodGuide'
-import { store } from '@/data/store'
 import { openExternalLink } from '@/utils/externalLinks'
 
 const MIN_AGE_MONTHS = 0
@@ -166,15 +159,11 @@ const props = defineProps({ visible: Boolean })
 const emit = defineEmits(['close'])
 const dialog = ref(null)
 const closeButton = ref(null)
-const selectedChildId = ref(store.growthChildren[0]?.id || '')
 const ageMonths = ref(6)
 const selectedGroupIds = ref([])
 const isTryingNewFood = ref(false)
 
 const foodGroupIcons = { Wheat, Bean, Drumstick, Egg, Carrot, Apple, Milk }
-const selectedChildName = computed(() => (
-  store.growthChildren.find(child => child.id === selectedChildId.value)?.name || '当前孩子'
-))
 const feedingStage = computed(() => getFeedingStage(ageMonths.value))
 const diversityResult = computed(() => evaluateFoodDiversity(selectedGroupIds.value))
 const safetyTips = computed(() => {
@@ -198,12 +187,6 @@ const { handleDialogKeydown } = useDialogFocus({
   dialogRef: dialog,
   initialFocus: () => closeButton.value,
   onEscape: close
-})
-
-watch(() => store.growthChildren.map(child => child.id), childIds => {
-  if (!childIds.includes(selectedChildId.value)) {
-    selectedChildId.value = childIds[0] || ''
-  }
 })
 
 function openSource(url) {
@@ -308,24 +291,18 @@ function close() {
   overscroll-behavior: contain;
 }
 
-.profile-bar {
-  display: grid;
-  grid-template-columns: minmax(10rem, 14rem) 1fr;
-  gap: 1rem;
-  align-items: end;
+.age-bar {
   padding: 1rem;
   background-color: var(--surface-soft);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-xl);
 }
 
-.child-field,
 .age-field {
   display: grid;
   gap: 0.45rem;
 }
 
-.child-field > span,
 .age-heading > span {
   color: var(--text-secondary);
   font-size: 0.78rem;
@@ -862,7 +839,6 @@ function close() {
     display: none;
   }
 
-  .profile-bar,
   .stage-card,
   .stage-facts,
   .food-group-grid,

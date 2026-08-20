@@ -80,7 +80,6 @@ Task 2（弹框交互、Dashboard 集成与浏览器验收）
   - `src/components/VaccineGuide.vue` — 静态指南弹框、来源与安全外链范式
   - `src/components/GrowthSchedule.vue` — 简洁计算型弹框与移动端布局范式
   - `src/composables/useDialogFocus.js` — 焦点约束与恢复
-  - `src/data/store.js:growthChildren` — 孩子名称只读来源
 - 验收标准:
   - [x] `npm run build` 成功且无新 warning
   - [x] `npm test` 全量测试通过
