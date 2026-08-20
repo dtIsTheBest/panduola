@@ -676,8 +676,10 @@ function close() {
 
 .child-select-group {
   display: grid;
-  flex: 1;
+  flex: 0 1 14rem;
   gap: 0.3rem;
+  width: 14rem;
+  max-width: 100%;
   min-width: 0;
 }
 
@@ -688,6 +690,7 @@ function close() {
 }
 
 .child-select {
+  width: 100%;
   min-width: 0;
 }
 
@@ -1097,6 +1100,11 @@ function close() {
   .child-switcher {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .child-select-group {
+    width: 100%;
+    max-width: none;
   }
 
   .child-actions,
