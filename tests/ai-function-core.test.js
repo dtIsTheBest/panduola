@@ -114,6 +114,7 @@ test('方舟适配器只发送固定协议并返回纯文本回答', async () =>
   const client = createArkClient({
     apiKey: 'test-ark-key',
     modelId: 'test-model',
+    thinkingMode: 'disabled',
     fetchImpl: async (_url, init) => {
       captured = JSON.parse(init.body)
       return new Response(JSON.stringify({
@@ -124,7 +125,32 @@ test('方舟适配器只发送固定协议并返回纯文本回答', async () =>
   assert.equal(await client.ask('宝宝晚上总醒怎么办？'), '可以先建立固定睡前流程。')
   assert.equal(captured.model, 'test-model')
   assert.equal(captured.messages.at(-1).content, '宝宝晚上总醒怎么办？')
+  assert.deepEqual(captured.thinking, { type: 'disabled' })
   assert.equal(JSON.stringify(captured).includes('test-ark-key'), false)
+})
+
+test('方舟思考模式仅在显式配置时发送且拒绝未知值', async () => {
+  let captured = null
+  const client = createArkClient({
+    apiKey: 'test-ark-key',
+    modelId: 'test-model',
+    fetchImpl: async (_url, init) => {
+      captured = JSON.parse(init.body)
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: '回答' } }]
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    }
+  })
+  assert.equal(await client.ask('问题'), '回答')
+  assert.equal(Object.hasOwn(captured, 'thinking'), false)
+  assert.throws(
+    () => createArkClient({
+      apiKey: 'test-ark-key',
+      modelId: 'test-model',
+      thinkingMode: 'enabled'
+    }),
+    error => error.code === AI_ERROR_CODES.NOT_CONFIGURED
+  )
 })
 
 test('方舟 429、非法响应和网络失败映射稳定错误', async () => {

@@ -56,7 +56,8 @@ function loadConfig() {
     ),
     maxRequestBytes: DEFAULT_MAX_REQUEST_BYTES,
     arkApiKey: Deno.env.get('ARK_API_KEY') ?? '',
-    arkModelId: Deno.env.get('ARK_MODEL_ID') ?? ''
+    arkModelId: Deno.env.get('ARK_MODEL_ID') ?? '',
+    arkThinkingMode: Deno.env.get('ARK_THINKING_MODE')
   })
 }
 
@@ -89,6 +90,7 @@ async function createRuntime() {
       arkClient = createArkClient({
         apiKey: config.arkApiKey,
         modelId: config.arkModelId,
+        thinkingMode: config.arkThinkingMode,
         timeoutMs: config.providerTimeoutMs,
         maxOutputTokens: config.maxOutputTokens
       })

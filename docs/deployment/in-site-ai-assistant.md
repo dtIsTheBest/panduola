@@ -55,13 +55,20 @@ openssl rand -hex 32
 ```text
 ARK_API_KEY=<火山方舟 API Key>
 ARK_MODEL_ID=<模型或接入点 ID>
+ARK_THINKING_MODE=disabled
 AI_ALLOWED_ORIGINS=https://www.nurtureprimer.com
 AI_QUOTA_SALT=<上一步生成的随机值>
 AI_GUEST_DAILY_LIMIT=3
 AI_USER_DAILY_LIMIT=20
-AI_PROVIDER_TIMEOUT_MS=18000
+AI_PROVIDER_TIMEOUT_MS=20000
 AI_SUPABASE_TIMEOUT_MS=10000
-AI_MAX_OUTPUT_TOKENS=800
+AI_MAX_OUTPUT_TOKENS=300
+```
+
+`ARK_THINKING_MODE` 默认不设置；仅当当前模型已通过生产 A/B 验证时设置为 `disabled`。其他值会使 AI 网关降级为 `AI_NOT_CONFIGURED`。切换模型或需要回滚时执行：
+
+```bash
+supabase secrets unset ARK_THINKING_MODE
 ```
 
 也可以使用 CLI；命令中的值仅为占位符：
@@ -70,13 +77,14 @@ AI_MAX_OUTPUT_TOKENS=800
 supabase secrets set \
   ARK_API_KEY='replace-with-ark-key' \
   ARK_MODEL_ID='replace-with-model-id' \
+  ARK_THINKING_MODE=disabled \
   AI_ALLOWED_ORIGINS=https://www.nurtureprimer.com \
   AI_QUOTA_SALT='replace-with-random-hex' \
   AI_GUEST_DAILY_LIMIT=3 \
   AI_USER_DAILY_LIMIT=20 \
-  AI_PROVIDER_TIMEOUT_MS=18000 \
+  AI_PROVIDER_TIMEOUT_MS=20000 \
   AI_SUPABASE_TIMEOUT_MS=10000 \
-  AI_MAX_OUTPUT_TOKENS=800
+  AI_MAX_OUTPUT_TOKENS=300
 ```
 
 ## 4. 部署 Edge Function

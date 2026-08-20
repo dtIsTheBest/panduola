@@ -212,11 +212,11 @@ Authorization: Bearer <user JWT 或 publishable key>
 4. 若 Authorization 中是用户 JWT，则向 Supabase Auth 验证并使用 user id；否则按游客处理。
 5. 使用服务端 `AI_QUOTA_SALT` 对 `user:<id>` 或 `guest:<guestId>:<可信客户端地址>` 执行 HMAC-SHA256，只把 hash 交给配额 RPC。
 6. RPC 在单事务内检查重复请求并预占 UTC 当日额度；拒绝时不调用模型。
-7. Edge Function 使用固定 system prompt、当前问题、固定模型和输出上限调用火山方舟；请求设置独立 deadline，不自动重试。
+7. Edge Function 使用固定 system prompt、当前问题、固定模型和输出上限调用火山方舟；请求设置独立 deadline，不自动重试。模型特定能力必须由显式服务端配置开启，并经过对应模型的生产 A/B 验证。
 8. 校验模型响应为非空纯文本并限制最大响应长度，只返回站内 DTO。
 9. UI 使用 Vue 文本插值展示回答，更新剩余额度并把问题加入最多五条的本机历史。
 
-性能边界：请求 JSON 上限 8 KiB、问题上限 500 字符、模型输出上限默认 800 tokens、模型 deadline 默认 18 秒、前端总 deadline 默认 25 秒。配额查询由复合索引和单主体细粒度锁支撑，不引入全局锁或进程内缓存。
+性能边界：请求 JSON 上限 8 KiB、问题上限 500 字符、代码默认模型输出上限 800 tokens、代码默认模型 deadline 18 秒、前端总 deadline 默认 25 秒。生产环境已通过 A/B 将 `ARK_THINKING_MODE` 设为 `disabled`、模型 deadline 设为 20 秒、输出上限设为 300 tokens；同问题 3 次直调和 1 次浏览器问答均成功。配额查询由复合索引和单主体细粒度锁支撑，不引入全局锁或进程内缓存。
 
 ### 4.4 方案优劣分析
 优点：
@@ -287,13 +287,14 @@ Authorization: Bearer <user JWT 或 publishable key>
 | `VITE_AI_REQUEST_TIMEOUT_MS` | int | 25000 | 前端总 deadline | 否（重新构建） |
 | `ARK_API_KEY` | secret | 无 | 火山方舟服务端密钥 | 是 |
 | `ARK_MODEL_ID` | string | 无 | 火山方舟模型或接入点 | 是 |
+| `ARK_THINKING_MODE` | enum | 未设置 | 当前模型验证兼容后可设为 `disabled`；未知值降级为未配置 | 是 |
 | `AI_ALLOWED_ORIGINS` | string | 无 | 允许的 Web/Tauri Origin 列表 | 是 |
 | `AI_QUOTA_SALT` | secret | 无 | 主体 HMAC 盐 | 是 |
 | `AI_GUEST_DAILY_LIMIT` | int | 3 | 游客每日额度 | 是 |
 | `AI_USER_DAILY_LIMIT` | int | 20 | 登录用户每日额度 | 是 |
-| `AI_PROVIDER_TIMEOUT_MS` | int | 18000 | 模型调用 deadline | 是 |
+| `AI_PROVIDER_TIMEOUT_MS` | int | 18000 | 模型调用 deadline；当前生产验证值 20000 | 是 |
 | `AI_SUPABASE_TIMEOUT_MS` | int | 10000 | Auth 与配额 RPC deadline | 是 |
-| `AI_MAX_OUTPUT_TOKENS` | int | 800 | 模型最大输出 token | 是 |
+| `AI_MAX_OUTPUT_TOKENS` | int | 800 | 模型最大输出 token；当前生产验证值 300 | 是 |
 
 ### 8.3 运维接口 (Operations Interfaces)
 - Supabase Dashboard/CLI 管理 Edge Function Secrets 和函数部署。
@@ -311,6 +312,7 @@ Authorization: Bearer <user JWT 或 publishable key>
 | 日期 | 变更内容 | 作者 |
 |------|----------|------|
 | 2026-08-19 | 完成需求与系统设计 | Codex |
+| 2026-08-20 | 完成生产超时定位及思考模式、deadline、输出上限 A/B | Codex |
 
 ## 10. 参考资料 (References)
 - [Supabase Edge Functions](https://supabase.com/docs/guides/functions)

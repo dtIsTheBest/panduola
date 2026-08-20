@@ -2,7 +2,7 @@
 
 > 由 spec.md 生成
 >
-> 任务总数: 5
+> 任务总数: 6
 > 核心原则: 先建后迁后删——先建立配额与网关，再接入前端，最后删除旧调用并完成交付
 
 ## 依赖关系总览
@@ -17,6 +17,8 @@ Task 3（前端 AI 客户端与依赖装配）
 Task 4（站内 AI UI 与首页顺序）
   ↓
 Task 5（部署文档与全链路验证）
+  ↓
+Task 6（生产 AI 延迟修复）
 ```
 
 ## 变更影响概览
@@ -41,6 +43,10 @@ Task 5（部署文档与全链路验证）
 | `.env.example` | 新建 | Task 5 | Web 公开配置示例 |
 | `docs/deployment/in-site-ai-assistant.md` | 新建 | Task 5 | 方舟、Supabase 与 EdgeOne 部署步骤 |
 | `docs/潘多拉-Vibe-Coding-全链路项目分享.md` | 修改 | Task 5 | 更新 AI 中间件和正式能力说明 |
+| `supabase/functions/_shared/arkClient.js` | 修改 | Task 6 | 普通问答显式关闭深度思考 |
+| `supabase/functions/ai-growth-assistant/index.ts` | 修改 | Task 6 | 注入模型能力配置 |
+| `tests/ai-function-core.test.js` | 修改 | Task 6 | 锁定方舟请求参数契约 |
+| `docs/troubleshooting-ai-timeout-20260820.md` | 新建 | Task 6 | 生产超时证据、根因与验证记录 |
 
 ### 受影响接口
 
@@ -178,19 +184,39 @@ Task 5（部署文档与全链路验证）
   - [x] 5.3: 更新项目介绍中的 AI 平台说明
   - [x] 5.4: 执行全量质量门禁和浏览器验收
 
+### 任务 6: [x] 修复生产 AI 正常问题超时
+- 文件: `supabase/functions/_shared/arkClient.js`（修改）、`supabase/functions/ai-growth-assistant/index.ts`（修改）、`tests/ai-function-core.test.js`（修改）、`docs/troubleshooting-ai-timeout-20260820.md`（新建）
+- 依赖: Task 5
+- spec 映射: 3.2、4.2.5、4.3、7.1、7.2、8.4
+- 说明: 根据生产 HTTP 504 与同问题耗时证据，以显式模型能力配置关闭深度思考，并用 20 秒 Provider deadline 与 300 tokens 输出上限完成生产 A/B。
+- context:
+  - `docs/troubleshooting-ai-timeout-20260820.md` — 生产证据链与根因
+  - `supabase/functions/_shared/arkClient.js` — 方舟 Chat 请求与 deadline
+  - 火山方舟 Chat API `thinking.type=disabled` — 官方低延迟参数
+- 验收标准:
+  - [x] 仅在显式配置时发送 `thinking: { type: "disabled" }`，未知模式降级为 `AI_NOT_CONFIGURED`
+  - [x] 单测覆盖配置开启、默认省略和未知值，且不泄露 API Key
+  - [x] `npm test` 与 `npm run build` 通过
+  - [x] 生产同问题 3 次直调和浏览器问答在 20 秒 Provider deadline 下成功
+  - [x] Code Review PASS
+- 子任务:
+  - [x] 6.1: 增加显式方舟思考模式配置
+  - [x] 6.2: 补充请求契约测试
+  - [x] 6.3: 完成评审、部署和生产复测
+
 ## Spec 覆盖映射
 
 | Spec 章节 | 任务 | 说明 |
 |-----------|------|------|
-| 1～3 | Task 1～5 | 问题、目标与需求由完整交付覆盖 |
+| 1～3 | Task 1～6 | 问题、目标与需求由完整交付覆盖 |
 | 4.1 | Task 1～4 | 薄前端、服务端网关和配额链路 |
 | 4.2.1 | Task 2～4 | 网关、适配器、客户端和 UI 模块 |
 | 4.2.2 | Task 1～3 | RPC、HTTP 和前端接口 |
 | 4.2.3 | Task 1 | 配额数据模型 |
 | 4.2.4 | Task 1～3 | 并发、幂等和取消 |
-| 4.2.5 | Task 2～4 | 跨层错误处理 |
-| 4.3 | Task 1～4 | 核心调用路径 |
+| 4.2.5 | Task 2～4、6 | 跨层错误处理与生产超时修复 |
+| 4.3 | Task 1～4、6 | 核心调用路径与模型低延迟参数 |
 | 4.4～6 | Task 5 | 取舍、备选与业界调研交付说明 |
-| 7 | Task 1～5 | 单元、数据库、集成和浏览器测试 |
-| 8 | Task 2、5 | 日志、指标、配置和运维 |
+| 7 | Task 1～6 | 单元、数据库、集成和浏览器测试 |
+| 8 | Task 2、5、6 | 日志、指标、配置和运维 |
 | 9～10 | Task 5 | 变更记录和参考资料 |

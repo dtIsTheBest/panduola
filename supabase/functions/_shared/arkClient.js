@@ -27,11 +27,19 @@ function extractAnswer(payload) {
 export function createArkClient({
   apiKey,
   modelId,
+  thinkingMode,
   fetchImpl = globalThis.fetch?.bind(globalThis),
   timeoutMs = DEFAULT_TIMEOUT_MS,
   maxOutputTokens = DEFAULT_MAX_OUTPUT_TOKENS
 } = {}) {
   if (typeof apiKey !== 'string' || !apiKey || typeof modelId !== 'string' || !modelId) {
+    throw new AiFunctionError(
+      503,
+      AI_ERROR_CODES.NOT_CONFIGURED,
+      'AI 助手服务尚未完成配置'
+    )
+  }
+  if (thinkingMode !== undefined && thinkingMode !== 'disabled') {
     throw new AiFunctionError(
       503,
       AI_ERROR_CODES.NOT_CONFIGURED,
@@ -54,21 +62,25 @@ export function createArkClient({
       controller.abort()
     }, timeoutMs)
     try {
+      const requestPayload = {
+        model: modelId,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: question }
+        ],
+        max_tokens: maxOutputTokens,
+        temperature: 0.4
+      }
+      if (thinkingMode === 'disabled') {
+        requestPayload.thinking = { type: 'disabled' }
+      }
       const response = await fetchImpl(ARK_CHAT_URL, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          model: modelId,
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: question }
-          ],
-          max_tokens: maxOutputTokens,
-          temperature: 0.4
-        }),
+        body: JSON.stringify(requestPayload),
         signal: controller.signal
       })
       if (response.status === 429) {
