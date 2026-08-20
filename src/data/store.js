@@ -7,7 +7,13 @@ import {
   createDataSpaceRepository
 } from './dataSpaceRepository.js'
 
-export const CURRENT_SCHEMA_VERSION = 2
+export const CURRENT_SCHEMA_VERSION = 3
+export const DEFAULT_GROWTH_CHILD_ID = 'growth-child-default'
+export const MAX_GROWTH_CHILDREN = 20
+export const MAX_GROWTH_CHILD_NAME_LENGTH = 20
+
+const DEFAULT_GROWTH_CHILD_NAME = '孩子 1'
+const GROWTH_CHILD_ID_PATTERN = /^[A-Za-z0-9_-]{1,100}$/
 
 export function isTauriEnvironment(targetWindow = globalThis.window) {
   return Boolean(targetWindow && (targetWindow.__TAURI_INTERNALS__ || targetWindow.__TAURI__))
@@ -502,8 +508,71 @@ function normalizeMeasurement(value, minimum, maximum) {
     : null
 }
 
-function normalizeGrowthRecord(record, index, strict) {
+function getUnicodeLength(value) {
+  return Array.from(value).length
+}
+
+function createDefaultGrowthChild() {
+  return {
+    id: DEFAULT_GROWTH_CHILD_ID,
+    name: DEFAULT_GROWTH_CHILD_NAME,
+    createdAt: 0,
+    updatedAt: 0
+  }
+}
+
+function normalizeGrowthChild(child) {
+  const source = child && typeof child === 'object' ? child : {}
+  const name = typeof source.name === 'string' ? source.name.trim() : ''
+  const valid = (
+    typeof source.id === 'string' &&
+    GROWTH_CHILD_ID_PATTERN.test(source.id) &&
+    getUnicodeLength(name) >= 1 &&
+    getUnicodeLength(name) <= MAX_GROWTH_CHILD_NAME_LENGTH &&
+    Number.isFinite(source.createdAt) &&
+    source.createdAt >= 0 &&
+    Number.isFinite(source.updatedAt) &&
+    source.updatedAt >= 0
+  )
+  if (!valid) {
+    throw new TypeError('孩子档案的 ID、名称或时间无效')
+  }
+  return {
+    id: source.id,
+    name,
+    createdAt: source.createdAt,
+    updatedAt: source.updatedAt
+  }
+}
+
+function normalizeGrowthChildren(rawChildren) {
+  if (!Array.isArray(rawChildren)) {
+    throw new TypeError('growthChildren 必须是数组')
+  }
+  if (rawChildren.length < 1 || rawChildren.length > MAX_GROWTH_CHILDREN) {
+    throw new TypeError(`孩子档案数量必须在 1—${MAX_GROWTH_CHILDREN} 之间`)
+  }
+
+  const children = rawChildren.map(child => normalizeGrowthChild(child))
+  const childIds = new Set()
+  const childNames = new Set()
+  for (const child of children) {
+    const normalizedName = child.name.toLowerCase()
+    if (childIds.has(child.id)) {
+      throw new TypeError('孩子档案 ID 不能重复')
+    }
+    if (childNames.has(normalizedName)) {
+      throw new TypeError('孩子名称不能重复')
+    }
+    childIds.add(child.id)
+    childNames.add(normalizedName)
+  }
+  return children
+}
+
+function normalizeGrowthRecord(record, index, strict, { childIds, isLegacy }) {
   const source = record && typeof record === 'object' ? record : {}
+  const childId = isLegacy ? DEFAULT_GROWTH_CHILD_ID : source.childId
   const heightCm = normalizeMeasurement(source.heightCm, 20, 250)
   const weightKg = normalizeMeasurement(source.weightKg, 0.5, 300)
   const headCircumferenceCm = source.headCircumferenceCm === null || source.headCircumferenceCm === undefined
@@ -512,6 +581,8 @@ function normalizeGrowthRecord(record, index, strict) {
   const valid = (
     typeof source.id === 'string' &&
     source.id.length > 0 &&
+    typeof childId === 'string' &&
+    childIds.has(childId) &&
     isValidDateOnly(source.measuredAt) &&
     heightCm !== null &&
     weightKg !== null &&
@@ -528,6 +599,7 @@ function normalizeGrowthRecord(record, index, strict) {
 
   return {
     id: source.id || `legacy-growth-${index}`,
+    childId,
     measuredAt: source.measuredAt,
     heightCm,
     weightKg,
@@ -538,21 +610,64 @@ function normalizeGrowthRecord(record, index, strict) {
   }
 }
 
+function createMigratedGrowthRecordId(originalId, index, usedIds) {
+  const baseId = `${originalId}-migrated-${index}`
+  let candidate = baseId
+  let suffix = 1
+  while (usedIds.has(candidate)) {
+    candidate = `${baseId}-${suffix}`
+    suffix += 1
+  }
+  return candidate
+}
+
 function normalizeDataInternal(rawData, strict) {
   if (!rawData || !Array.isArray(rawData.categories) || !Array.isArray(rawData.links)) {
     throw new TypeError('数据文件必须包含 categories 和 links 数组')
+  }
+  const hasSchemaVersion = Object.hasOwn(rawData, 'schemaVersion')
+  if (hasSchemaVersion && !Number.isInteger(rawData.schemaVersion)) {
+    throw new TypeError('schemaVersion 必须是整数')
+  }
+  const sourceSchemaVersion = hasSchemaVersion ? rawData.schemaVersion : 1
+  if (sourceSchemaVersion < 1 || sourceSchemaVersion > CURRENT_SCHEMA_VERSION) {
+    throw new TypeError(`不支持的快照版本：${sourceSchemaVersion}`)
   }
   if (strict && rawData.growthRecords !== undefined && !Array.isArray(rawData.growthRecords)) {
     throw new TypeError('growthRecords 必须是数组')
   }
 
+  const isLegacy = sourceSchemaVersion < CURRENT_SCHEMA_VERSION
   const categories = rawData.categories.map((category, index) => (
     normalizeCategory(category, String(index), strict)
   ))
   const links = rawData.links.map((link, index) => normalizeLink(link, index, strict))
+  const growthChildren = isLegacy
+    ? [createDefaultGrowthChild()]
+    : normalizeGrowthChildren(rawData.growthChildren)
+  const childIds = new Set(growthChildren.map(child => child.id))
   const growthRecords = (Array.isArray(rawData.growthRecords) ? rawData.growthRecords : [])
-    .map((record, index) => normalizeGrowthRecord(record, index, strict))
+    .map((record, index) => normalizeGrowthRecord(record, index, strict || !isLegacy, {
+      childIds,
+      isLegacy
+    }))
     .filter(Boolean)
+
+  const recordIds = new Set()
+  for (let index = 0; index < growthRecords.length; index += 1) {
+    let record = growthRecords[index]
+    if (recordIds.has(record.id)) {
+      if (!isLegacy) {
+        throw new TypeError('成长记录 ID 不能重复')
+      }
+      record = {
+        ...record,
+        id: createMigratedGrowthRecordId(record.id, index, recordIds)
+      }
+      growthRecords[index] = record
+    }
+    recordIds.add(record.id)
+  }
 
   if (strict) {
     const categoryIds = new Set()
@@ -569,6 +684,7 @@ function normalizeDataInternal(rawData, strict) {
     schemaVersion: CURRENT_SCHEMA_VERSION,
     categories,
     links,
+    growthChildren,
     growthRecords
   }
 }
@@ -630,7 +746,9 @@ function configureGuestSpaceChanges(storeInstance) {
           ) return
           storeInstance.categories = envelope.snapshot.categories
           storeInstance.links = envelope.snapshot.links
+          storeInstance.growthChildren = envelope.snapshot.growthChildren
           storeInstance.growthRecords = envelope.snapshot.growthRecords
+          storeInstance.dataGeneration += 1
         })
       )).catch(() => {})
     }
@@ -652,7 +770,11 @@ async function loadData() {
   return loadOrCreateDataSpace(activeSpaceKey)
 }
 
-async function commitData(storeInstance, data, { source = 'local', sync } = {}) {
+async function commitData(
+  storeInstance,
+  data,
+  { source = 'local', sync, authoritative = false } = {}
+) {
   try {
     await dataSpaceRepository.save(activeSpaceKey, data, {
       sync: sync ?? { dirty: source !== 'cloud' }
@@ -677,13 +799,17 @@ async function commitData(storeInstance, data, { source = 'local', sync } = {}) 
     if (envelope) {
       storeInstance.categories = envelope.snapshot.categories
       storeInstance.links = envelope.snapshot.links
+      storeInstance.growthChildren = envelope.snapshot.growthChildren
       storeInstance.growthRecords = envelope.snapshot.growthRecords
+      storeInstance.dataGeneration += 1
     }
     throw error
   }
   storeInstance.categories = data.categories
   storeInstance.links = data.links
+  storeInstance.growthChildren = data.growthChildren
   storeInstance.growthRecords = data.growthRecords
+  if (authoritative) storeInstance.dataGeneration += 1
   if (source !== 'cloud') {
     emitLocalCommit(data, source)
   }
@@ -692,12 +818,25 @@ async function commitData(storeInstance, data, { source = 'local', sync } = {}) 
 export const store = reactive({
   categories: cloneData(defaultCategories),
   links: cloneData(defaultLinks),
+  growthChildren: [createDefaultGrowthChild()],
   growthRecords: [],
+  dataGeneration: 0,
   initialized: false,
   activeSpaceKey: GUEST_SPACE_KEY,
 
-  getSnapshot(categories = this.categories, links = this.links, growthRecords = this.growthRecords) {
-    return normalizeData({ categories, links, growthRecords })
+  getSnapshot(
+    categories = this.categories,
+    links = this.links,
+    growthRecords = this.growthRecords,
+    growthChildren = this.growthChildren
+  ) {
+    return normalizeData({
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      categories,
+      links,
+      growthChildren,
+      growthRecords
+    })
   },
 
   async init() {
@@ -707,7 +846,9 @@ export const store = reactive({
       const data = await loadData()
       this.categories = data.categories
       this.links = data.links
+      this.growthChildren = data.growthChildren
       this.growthRecords = data.growthRecords
+      this.dataGeneration += 1
       this.initialized = true
       configureGuestSpaceChanges(this)
     })
@@ -719,7 +860,7 @@ export const store = reactive({
     cancelVisitPersistence()
     try {
       return await enqueueMutation(async () => {
-        await commitData(this, data, { source: 'import' })
+        await commitData(this, data, { source: 'import', authoritative: true })
       })
     } finally {
       activeDataReplacements -= 1
@@ -739,7 +880,9 @@ export const store = reactive({
         this.activeSpaceKey = normalizedSpaceKey
         this.categories = data.categories
         this.links = data.links
+        this.growthChildren = data.growthChildren
         this.growthRecords = data.growthRecords
+        this.dataGeneration += 1
         this.initialized = true
         configureGuestSpaceChanges(this)
       })
@@ -813,7 +956,9 @@ export const store = reactive({
         this.activeSpaceKey = normalizedSpaceKey
         this.categories = data.categories
         this.links = data.links
+        this.growthChildren = data.growthChildren
         this.growthRecords = data.growthRecords
+        this.dataGeneration += 1
         this.initialized = true
         configureGuestSpaceChanges(this)
         return created
@@ -829,7 +974,7 @@ export const store = reactive({
     cancelVisitPersistence()
     try {
       return await enqueueMutation(async () => {
-        await commitData(this, data, { source, sync })
+        await commitData(this, data, { source, sync, authoritative: true })
       })
     } finally {
       activeDataReplacements -= 1
@@ -884,7 +1029,7 @@ export const store = reactive({
           }
         )
         const data = validateImportData(copy.snapshot)
-        await commitData(this, data, { source: 'recovery' })
+        await commitData(this, data, { source: 'recovery', authoritative: true })
         return true
       })
     } finally {
@@ -915,7 +1060,9 @@ export const store = reactive({
         if (!envelope) return false
         this.categories = envelope.snapshot.categories
         this.links = envelope.snapshot.links
+        this.growthChildren = envelope.snapshot.growthChildren
         this.growthRecords = envelope.snapshot.growthRecords
+        this.dataGeneration += 1
         return true
       })
     } finally {
@@ -1051,15 +1198,85 @@ export const store = reactive({
     })
   },
 
-  async upsertGrowthRecord(rawRecord) {
-    const record = normalizeGrowthRecord(rawRecord, 0, true)
+  async addGrowthChild(rawChild, { expectedDataGeneration } = {}) {
     return enqueueMutation(async () => {
+      if (expectedDataGeneration !== undefined && this.dataGeneration !== expectedDataGeneration) {
+        throw new TypeError('数据已更新，请重新操作')
+      }
+      const child = normalizeGrowthChild(rawChild)
+      const growthChildren = normalizeGrowthChildren([...this.growthChildren, child])
+      const data = this.getSnapshot(
+        this.categories,
+        this.links,
+        this.growthRecords,
+        growthChildren
+      )
+      await commitData(this, data)
+      return true
+    })
+  },
+
+  async renameGrowthChild(childId, name, updatedAt = Date.now(), { expectedDataGeneration } = {}) {
+    return enqueueMutation(async () => {
+      if (expectedDataGeneration !== undefined && this.dataGeneration !== expectedDataGeneration) {
+        throw new TypeError('数据已更新，请重新操作')
+      }
+      const index = this.growthChildren.findIndex(child => child.id === childId)
+      if (index < 0) return false
+
+      const growthChildren = [...this.growthChildren]
+      growthChildren[index] = normalizeGrowthChild({
+        ...growthChildren[index],
+        name,
+        updatedAt
+      })
+      const normalizedChildren = normalizeGrowthChildren(growthChildren)
+      const data = this.getSnapshot(
+        this.categories,
+        this.links,
+        this.growthRecords,
+        normalizedChildren
+      )
+      await commitData(this, data)
+      return true
+    })
+  },
+
+  async upsertGrowthRecord(rawRecord, { expectedDataGeneration } = {}) {
+    return enqueueMutation(async () => {
+      if (expectedDataGeneration !== undefined && this.dataGeneration !== expectedDataGeneration) {
+        throw new TypeError('数据已更新，请重新操作')
+      }
+      const childIds = new Set(this.growthChildren.map(child => child.id))
+      const fallbackChildId = this.growthChildren.length === 1
+        ? this.growthChildren[0].id
+        : undefined
+      const record = normalizeGrowthRecord({
+        ...rawRecord,
+        childId: rawRecord?.childId ?? fallbackChildId
+      }, 0, true, {
+        childIds,
+        isLegacy: false
+      })
       const growthRecords = [...this.growthRecords]
       const index = growthRecords.findIndex(item => item.id === record.id)
+      const existingRecord = index >= 0 ? growthRecords[index] : null
       if (index >= 0) {
+        if (existingRecord.childId !== record.childId) {
+          throw new TypeError('成长记录不能转移到其他孩子')
+        }
         growthRecords[index] = record
       } else {
         growthRecords.push(record)
+      }
+      const keepsExistingDate = Boolean(
+        existingRecord && existingRecord.measuredAt === record.measuredAt
+      )
+      const hasDuplicateDate = !keepsExistingDate && growthRecords.some(item => (
+        item.id !== record.id && item.childId === record.childId && item.measuredAt === record.measuredAt
+      ))
+      if (hasDuplicateDate) {
+        throw new TypeError('该孩子在所选日期已经有成长记录')
       }
       const data = this.getSnapshot(this.categories, this.links, growthRecords)
       await commitData(this, data)
@@ -1067,9 +1284,18 @@ export const store = reactive({
     })
   },
 
-  async deleteGrowthRecord(id) {
+  async deleteGrowthRecord(id, childId, { expectedDataGeneration } = {}) {
     return enqueueMutation(async () => {
-      const growthRecords = this.growthRecords.filter(record => record.id !== id)
+      if (expectedDataGeneration !== undefined && this.dataGeneration !== expectedDataGeneration) {
+        throw new TypeError('数据已更新，请重新操作')
+      }
+      const resolvedChildId = childId ?? (
+        this.growthChildren.length === 1 ? this.growthChildren[0].id : null
+      )
+      if (!resolvedChildId) return false
+      const growthRecords = this.growthRecords.filter(record => (
+        record.id !== id || record.childId !== resolvedChildId
+      ))
       if (growthRecords.length === this.growthRecords.length) return false
 
       const data = this.getSnapshot(this.categories, this.links, growthRecords)

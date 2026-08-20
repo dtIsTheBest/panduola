@@ -1,7 +1,10 @@
 import { AppError, ERROR_CODES } from '../account/errors.js'
 import { SYNC_DEFAULTS } from '../account/config.js'
 import {
+  assertSnapshotSize,
   assertSupportedSnapshot,
+  canonicalizeSnapshot,
+  prepareReadableSnapshot,
   prepareSnapshot,
   SUPPORTED_SNAPSHOT_SCHEMA_VERSION
 } from './snapshot.js'
@@ -124,7 +127,26 @@ async function validateRemoteRow(row, normalizeSnapshot, cryptoApi) {
       '云端快照 Schema 元数据不一致'
     )
   }
-  assertSupportedSnapshot(row.payload)
+  if (!HASH_PATTERN.test(String(row.payload_hash))) {
+    throw new AppError(
+      ERROR_CODES.INVALID_REMOTE_DATA,
+      '云端快照 hash 格式无效'
+    )
+  }
+  if (!UUID_PATTERN.test(String(row.updated_by_device))) {
+    throw new AppError(
+      ERROR_CODES.INVALID_REMOTE_DATA,
+      '云端快照设备标识无效'
+    )
+  }
+
+  const originalPrepared = await prepareReadableSnapshot(row.payload, { cryptoApi })
+  if (originalPrepared.hash !== row.payload_hash) {
+    throw new AppError(
+      ERROR_CODES.REMOTE_DATA_CORRUPTED,
+      '云端快照完整性校验失败'
+    )
+  }
 
   let snapshot
   try {
@@ -139,31 +161,22 @@ async function validateRemoteRow(row, normalizeSnapshot, cryptoApi) {
   }
 
   assertSupportedSnapshot(snapshot)
-  if (!HASH_PATTERN.test(String(row.payload_hash))) {
-    throw new AppError(
-      ERROR_CODES.INVALID_REMOTE_DATA,
-      '云端快照 hash 格式无效'
-    )
-  }
-  if (!UUID_PATTERN.test(String(row.updated_by_device))) {
-    throw new AppError(
-      ERROR_CODES.INVALID_REMOTE_DATA,
-      '云端快照设备标识无效'
-    )
-  }
-
-  const prepared = await prepareSnapshot(snapshot, { cryptoApi })
-  if (prepared.hash !== row.payload_hash) {
-    throw new AppError(
-      ERROR_CODES.REMOTE_DATA_CORRUPTED,
-      '云端快照完整性校验失败'
-    )
+  if (row.schema_version === SUPPORTED_SNAPSHOT_SCHEMA_VERSION) {
+    const normalizedPrepared = await prepareSnapshot(snapshot, { cryptoApi })
+    if (normalizedPrepared.hash !== originalPrepared.hash) {
+      throw new AppError(
+        ERROR_CODES.INVALID_REMOTE_DATA,
+        '当前 Schema 的云端快照未规范化'
+      )
+    }
+  } else {
+    assertSnapshotSize(canonicalizeSnapshot(snapshot))
   }
 
   return Object.freeze({
     snapshot,
     revision: parseRevision(row.revision),
-    payloadHash: prepared.hash,
+    payloadHash: originalPrepared.hash,
     updatedAt: parseUpdatedAt(row.updated_at),
     updatedByDevice: String(row.updated_by_device).toLowerCase()
   })

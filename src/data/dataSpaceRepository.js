@@ -1,4 +1,5 @@
 import {
+  SUPPORTED_SNAPSHOT_SCHEMA_VERSION,
   assertSnapshotSize,
   assertSupportedSnapshot,
   canonicalizeSnapshot
@@ -206,7 +207,7 @@ function validateEnvelope(rawEnvelope, expectedSpaceKey, normalizeSnapshot) {
 function validateSnapshot(rawSnapshot, normalizeSnapshot) {
   if (
     Number.isInteger(rawSnapshot?.schemaVersion) &&
-    rawSnapshot.schemaVersion > 2
+    rawSnapshot.schemaVersion > SUPPORTED_SNAPSHOT_SCHEMA_VERSION
   ) {
     throw new AppError(
       ERROR_CODES.UNSUPPORTED_SCHEMA,

@@ -165,7 +165,27 @@ test('Stronghold 初始化与存取失败映射为明确错误且允许重试初
 })
 
 test('Tauri 游客旧数据在新空间成功写入后完成迁移并保留旧文件', async () => {
-  const legacyRaw = JSON.stringify(makeSnapshot('旧数据'))
+  const legacyRaw = JSON.stringify({
+    schemaVersion: 2,
+    categories: [{ id: 'c1', name: '分类', children: [] }],
+    links: [{
+      id: 'l1',
+      title: '旧数据',
+      description: '',
+      url: 'https://example.com',
+      categoryId: 'c1'
+    }],
+    growthRecords: [{
+      id: 'legacy-growth',
+      measuredAt: '2026-01-01',
+      heightCm: 100,
+      weightKg: 15,
+      headCircumferenceCm: null,
+      note: '',
+      createdAt: 1,
+      updatedAt: 1
+    }]
+  })
   const calls = []
   const invoke = async (command, args) => {
     calls.push([command, args])
@@ -181,13 +201,50 @@ test('Tauri 游客旧数据在新空间成功写入后完成迁移并保留旧�
 
   const migrated = await createTauriRepository(invoke).load(GUEST_SPACE_KEY)
   assert.equal(migrated.snapshot.links[0].title, '旧数据')
+  assert.equal(migrated.snapshot.schemaVersion, 3)
+  assert.equal(migrated.snapshot.growthRecords[0].childId, 'growth-child-default')
   const saveCall = calls.find(([command]) => command === 'save_space_file')
   assert.equal(saveCall[1].ownerKey, GUEST_SPACE_KEY)
   assert.equal(JSON.parse(saveCall[1].data).ownerKey, GUEST_SPACE_KEY)
+  assert.equal(JSON.parse(saveCall[1].data).snapshot.schemaVersion, 3)
   assert.equal(
     calls.some(([command]) => command === 'quarantine_data_file'),
     false
   )
+})
+
+test('Tauri 现有 v2 空间 envelope 迁移为 v3 并保留同步元数据', async () => {
+  const legacyEnvelope = {
+    localFormatVersion: 1,
+    localRevision: 8,
+    ownerKey: GUEST_SPACE_KEY,
+    snapshot: {
+      schemaVersion: 2,
+      categories: [{ id: 'c1', name: '分类', children: [] }],
+      links: [],
+      growthRecords: []
+    },
+    sync: {
+      remoteRevision: 4,
+      dirty: false,
+      lastSyncedHash: 'legacy-hash',
+      lastSyncedAt: '2026-08-20T00:00:00.000Z'
+    },
+    updatedAt: '2026-08-20T00:00:00.000Z'
+  }
+  const invoke = async command => {
+    if (command === 'read_space_file') {
+      return { data: JSON.stringify(legacyEnvelope), quarantined: false }
+    }
+    throw new Error(`unexpected command: ${command}`)
+  }
+  const envelope = await createTauriRepository(invoke).load(GUEST_SPACE_KEY)
+
+  assert.equal(envelope.snapshot.schemaVersion, 3)
+  assert.equal(envelope.snapshot.growthChildren[0].id, 'growth-child-default')
+  assert.equal(envelope.localRevision, 8)
+  assert.equal(envelope.sync.remoteRevision, 4)
+  assert.equal(envelope.sync.lastSyncedHash, 'legacy-hash')
 })
 
 test('Tauri 原生已隔离响应直接读取恢复副本并修复主空间', async () => {

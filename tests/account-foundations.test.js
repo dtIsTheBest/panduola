@@ -32,7 +32,7 @@ function createLegacyJwt(role) {
 
 function createSnapshot(overrides = {}) {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     categories: [{ id: 'c1', name: '育儿', children: [] }],
     links: [{
       id: 'l1',
@@ -40,6 +40,13 @@ function createSnapshot(overrides = {}) {
       url: 'https://example.com',
       categoryId: 'c1'
     }],
+    growthChildren: [{
+      id: 'growth-child-default',
+      name: '孩子 1',
+      createdAt: 0,
+      updatedAt: 0
+    }],
+    growthRecords: [],
     ...overrides
   }
 }
@@ -153,6 +160,8 @@ test('确定性快照保持数组顺序但忽略对象键顺序', async () => {
       id: link.id
     })),
     categories: first.categories,
+    growthChildren: first.growthChildren,
+    growthRecords: first.growthRecords,
     schemaVersion: first.schemaVersion
   }
   const reversedLinks = createSnapshot({
@@ -193,11 +202,11 @@ test('快照大小按 UTF-8 字节计算并执行严格边界', () => {
 
 test('快照拒绝未来 Schema、非法结构和不可序列化字段', () => {
   assert.throws(
-    () => canonicalizeSnapshot(createSnapshot({ schemaVersion: 3 })),
+    () => canonicalizeSnapshot(createSnapshot({ schemaVersion: 4 })),
     error => error.code === ERROR_CODES.UNSUPPORTED_SCHEMA
   )
   assert.throws(
-    () => canonicalizeSnapshot({ schemaVersion: 2, categories: [], links: null }),
+    () => canonicalizeSnapshot({ schemaVersion: 3, categories: [], links: null }),
     error => error.code === ERROR_CODES.INVALID_REMOTE_DATA
   )
   assert.throws(
@@ -359,7 +368,7 @@ test('诊断指标和导出报告拒绝未知字段与业务数据', () => {
   const report = diagnostics.exportReport({
     syncStatus: 'idle',
     lastSyncedAt: '2026-07-31T07:59:00.000Z',
-    schemaVersion: 2,
+    schemaVersion: 3,
     remoteRevision: 3,
     isDirty: false,
     payloadBytes: 100,

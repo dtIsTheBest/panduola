@@ -84,7 +84,7 @@ test('安全外链仅接受 HTTP(S) 并隔离 opener', () => {
   assert.equal(openedWindow.opener, null)
 })
 
-test('旧数据迁移到 Schema v2 并补充默认推荐标识', () => {
+test('旧数据迁移到当前 Schema 并补充默认推荐标识与孩子档案', () => {
   const legacyData = {
     categories: [{ id: 'c1', name: '育儿知识', children: [] }],
     links: [
@@ -111,6 +111,7 @@ test('旧数据迁移到 Schema v2 并补充默认推荐标识', () => {
   assert.equal(migrated.links[1].isDefault, false)
   assert.equal(migrated.links[1].favorite, true)
   assert.deepEqual(migrated.links[0].tags, [])
+  assert.equal(migrated.growthChildren.length, 1)
   assert.equal('isDefault' in legacyData.links[0], false)
 })
 

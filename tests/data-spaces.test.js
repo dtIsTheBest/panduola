@@ -85,14 +85,27 @@ test('数据空间键仅接受 guest 与 UUID 用户标识', async () => {
 test('旧数据仅在新游客空间写入成功后完成迁移', async () => {
   const storage = createMemoryStorage()
   const legacyRaw = JSON.stringify({
+    schemaVersion: 2,
     categories: [{ id: 'c1', name: '旧分类', children: [] }],
-    links: []
+    links: [],
+    growthRecords: [{
+      id: 'legacy-growth',
+      measuredAt: '2026-01-01',
+      heightCm: 100,
+      weightKg: 15,
+      headCircumferenceCm: null,
+      note: '',
+      createdAt: 1,
+      updatedAt: 1
+    }]
   })
   storage.values.set('panduola_data', legacyRaw)
   const repository = createRepository(storage)
 
   const migrated = await repository.load(GUEST_SPACE_KEY)
-  assert.equal(migrated.snapshot.schemaVersion, 2)
+  assert.equal(migrated.snapshot.schemaVersion, 3)
+  assert.equal(migrated.snapshot.growthChildren[0].id, 'growth-child-default')
+  assert.equal(migrated.snapshot.growthRecords[0].childId, 'growth-child-default')
   assert.equal(migrated.snapshot.categories[0].name, '旧分类')
   assert.equal(storage.values.get('panduola_data'), legacyRaw)
   assert.ok(storage.values.has('panduola_space:guest'))
@@ -107,6 +120,36 @@ test('旧数据仅在新游客空间写入成功后完成迁移', async () => {
   )
   assert.equal(failedStorage.values.get('panduola_data'), legacyRaw)
   assert.equal(failedStorage.values.has('panduola_space:guest'), false)
+})
+
+test('现有 Web v2 空间 envelope 迁移为 v3 并保留 revision 与同步元数据', async () => {
+  const storage = createMemoryStorage()
+  const legacySnapshot = {
+    schemaVersion: 2,
+    categories: [{ id: 'c1', name: '旧分类', children: [] }],
+    links: [],
+    growthRecords: []
+  }
+  storage.values.set('panduola_space:guest', JSON.stringify({
+    localFormatVersion: 1,
+    localRevision: 7,
+    ownerKey: 'guest',
+    snapshot: legacySnapshot,
+    sync: {
+      remoteRevision: 3,
+      dirty: false,
+      lastSyncedHash: 'legacy-hash',
+      lastSyncedAt: '2026-08-20T00:00:00.000Z'
+    },
+    updatedAt: '2026-08-20T00:00:00.000Z'
+  }))
+  const envelope = await createRepository(storage).load(GUEST_SPACE_KEY)
+
+  assert.equal(envelope.snapshot.schemaVersion, 3)
+  assert.equal(envelope.snapshot.growthChildren[0].id, 'growth-child-default')
+  assert.equal(envelope.localRevision, 7)
+  assert.equal(envelope.sync.remoteRevision, 3)
+  assert.equal(envelope.sync.lastSyncedHash, 'legacy-hash')
 })
 
 test('损坏旧数据先隔离，再允许调用方使用默认快照', async () => {

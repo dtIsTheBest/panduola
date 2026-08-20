@@ -1,7 +1,7 @@
 import { SYNC_DEFAULTS } from '../account/config.js'
 import { AppError, ERROR_CODES } from '../account/errors.js'
 
-export const SUPPORTED_SNAPSHOT_SCHEMA_VERSION = 2
+export const SUPPORTED_SNAPSHOT_SCHEMA_VERSION = 3
 
 function serializeCanonicalValue(value, ancestors) {
   if (value === null || typeof value === 'string' || typeof value === 'boolean') {
@@ -62,8 +62,36 @@ export function assertSupportedSnapshot(snapshot) {
   return snapshot
 }
 
+export function assertReadableSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
+    throw new AppError(ERROR_CODES.INVALID_REMOTE_DATA, '快照格式无效')
+  }
+  if (
+    !Number.isInteger(snapshot.schemaVersion) ||
+    snapshot.schemaVersion < 1 ||
+    snapshot.schemaVersion > SUPPORTED_SNAPSHOT_SCHEMA_VERSION
+  ) {
+    throw new AppError(
+      ERROR_CODES.UNSUPPORTED_SCHEMA,
+      `不支持的快照版本：${String(snapshot.schemaVersion)}`
+    )
+  }
+  if (!Array.isArray(snapshot.categories) || !Array.isArray(snapshot.links)) {
+    throw new AppError(
+      ERROR_CODES.INVALID_REMOTE_DATA,
+      '快照必须包含 categories 和 links 数组'
+    )
+  }
+  return snapshot
+}
+
 export function canonicalizeSnapshot(snapshot) {
   assertSupportedSnapshot(snapshot)
+  return serializeCanonicalValue(snapshot, new Set())
+}
+
+export function canonicalizeReadableSnapshot(snapshot) {
+  assertReadableSnapshot(snapshot)
   return serializeCanonicalValue(snapshot, new Set())
 }
 
@@ -120,6 +148,25 @@ async function hashSnapshotBytes(encodedSnapshot, cryptoApi) {
   }
 }
 
+async function prepareCanonicalSnapshot(
+  canonicalJson,
+  cryptoApi,
+  maxBytes = SYNC_DEFAULTS.maxSnapshotBytes
+) {
+  const encodedSnapshot = new TextEncoder().encode(canonicalJson)
+  const byteLength = assertEncodedSnapshotSize(encodedSnapshot, maxBytes)
+  const hash = await hashSnapshotBytes(encodedSnapshot, cryptoApi)
+  return Object.freeze({ canonicalJson, hash, byteLength })
+}
+
+export async function prepareReadableSnapshot(
+  snapshot,
+  { cryptoApi = globalThis.crypto } = {}
+) {
+  const canonicalJson = canonicalizeReadableSnapshot(snapshot)
+  return prepareCanonicalSnapshot(canonicalJson, cryptoApi)
+}
+
 export async function hashCanonicalSnapshot(
   canonicalSnapshot,
   cryptoApi = globalThis.crypto
@@ -129,14 +176,9 @@ export async function hashCanonicalSnapshot(
 
 export async function prepareSnapshot(snapshot, options = {}) {
   const canonicalJson = canonicalizeSnapshot(snapshot)
-  const encodedSnapshot = new TextEncoder().encode(canonicalJson)
-  const byteLength = assertEncodedSnapshotSize(
-    encodedSnapshot,
+  return prepareCanonicalSnapshot(
+    canonicalJson,
+    options.cryptoApi ?? globalThis.crypto,
     options.maxBytes ?? SYNC_DEFAULTS.maxSnapshotBytes
   )
-  const hash = await hashSnapshotBytes(
-    encodedSnapshot,
-    options.cryptoApi ?? globalThis.crypto
-  )
-  return Object.freeze({ canonicalJson, byteLength, hash })
 }

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { test } from 'node:test'
 import { createAuthAdapter } from '../src/account/authAdapter.js'
 import {
@@ -13,7 +14,10 @@ import { validateImportData } from '../src/data/store.js'
 import {
   createCloudSnapshotRepository
 } from '../src/sync/cloudSnapshotRepository.js'
-import { prepareSnapshot } from '../src/sync/snapshot.js'
+import {
+  prepareReadableSnapshot,
+  prepareSnapshot
+} from '../src/sync/snapshot.js'
 
 const USER_ID = '11111111-1111-4111-8111-111111111111'
 const DEVICE_ID = '22222222-2222-4222-8222-222222222222'
@@ -29,7 +33,7 @@ function createConfig() {
 
 function createSnapshot(overrides = {}) {
   return validateImportData({
-    schemaVersion: 2,
+    schemaVersion: 3,
     categories: [{ id: 'c1', name: '育儿', children: [] }],
     links: [{
       id: 'l1',
@@ -38,6 +42,13 @@ function createSnapshot(overrides = {}) {
       url: 'https://example.com',
       categoryId: 'c1'
     }],
+    growthChildren: [{
+      id: 'growth-child-default',
+      name: '孩子 1',
+      createdAt: 0,
+      updatedAt: 0
+    }],
+    growthRecords: [],
     ...overrides
   })
 }
@@ -406,6 +417,75 @@ test('云端 load 返回经 Schema、大小和 hash 验证的当前用户快照'
   assert.deepEqual(fake.calls[0], ['from', 'user_snapshots'])
 })
 
+test('云端 load 先验证原始 v2 hash 再迁移为 v3', async () => {
+  const legacySnapshot = {
+    schemaVersion: 2,
+    categories: [{ id: 'c1', name: '育儿', children: [] }],
+    links: [],
+    growthRecords: [{
+      id: 'legacy-growth',
+      measuredAt: '2026-01-01',
+      heightCm: 100,
+      weightKg: 15,
+      headCircumferenceCm: null,
+      note: '',
+      createdAt: 1,
+      updatedAt: 1
+    }]
+  }
+  const preparedLegacy = await prepareReadableSnapshot(legacySnapshot)
+  const goldenCanonical = '{"categories":[{"children":[],"id":"c1","name":"育儿"}],"growthRecords":[{"createdAt":1,"headCircumferenceCm":null,"heightCm":100,"id":"legacy-growth","measuredAt":"2026-01-01","note":"","updatedAt":1,"weightKg":15}],"links":[],"schemaVersion":2}'
+  const goldenHash = createHash('sha256').update(goldenCanonical).digest('hex')
+  assert.equal(preparedLegacy.canonicalJson, goldenCanonical)
+  assert.equal(preparedLegacy.hash, goldenHash)
+  const row = {
+    schema_version: 2,
+    payload: legacySnapshot,
+    payload_hash: preparedLegacy.hash,
+    revision: 2,
+    updated_at: UPDATED_AT,
+    updated_by_device: DEVICE_ID
+  }
+  const fake = createCloudClient({ loadResult: { data: row, error: null } })
+  const repository = createCloudSnapshotRepository({
+    client: fake.client,
+    deviceId: DEVICE_ID,
+    normalizeSnapshot: validateImportData
+  })
+
+  const remote = await repository.load()
+  assert.equal(remote.snapshot.schemaVersion, 3)
+  assert.equal(remote.snapshot.growthRecords[0].childId, 'growth-child-default')
+  assert.equal(remote.payloadHash, preparedLegacy.hash)
+})
+
+test('云端 load 拒绝 hash 正确但未规范化的当前 v3 payload', async () => {
+  const snapshot = createSnapshot()
+  const rawSnapshot = {
+    ...snapshot,
+    growthChildren: snapshot.growthChildren.map(child => ({
+      ...child,
+      name: ` ${child.name} `
+    }))
+  }
+  const prepared = await prepareReadableSnapshot(rawSnapshot)
+  const row = {
+    schema_version: 3,
+    payload: rawSnapshot,
+    payload_hash: prepared.hash,
+    revision: 1,
+    updated_at: UPDATED_AT,
+    updated_by_device: DEVICE_ID
+  }
+  const fake = createCloudClient({ loadResult: { data: row, error: null } })
+  const repository = createCloudSnapshotRepository({
+    client: fake.client,
+    deviceId: DEVICE_ID,
+    normalizeSnapshot: validateImportData
+  })
+  await assert.rejects(repository.load(), error => error.code === ERROR_CODES.INVALID_REMOTE_DATA)
+})
+
 test('云端 load 拒绝未来 Schema、元数据不一致、hash 损坏与超限快照', async () => {
   async function assertLoadError(row, code) {
     const fake = createCloudClient({ loadResult: { data: row, error: null } })
@@ -451,7 +531,7 @@ test('云端 create 不接受 userId 且仅回读元数据', async () => {
   const { hash } = await prepareSnapshot(snapshot)
   const result = {
     data: {
-      schema_version: 2,
+      schema_version: 3,
       payload_hash: hash,
       revision: 1,
       updated_at: UPDATED_AT,

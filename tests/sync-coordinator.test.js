@@ -16,7 +16,7 @@ function clone(value) {
 
 function createSnapshot(label) {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     categories: [{ id: 'c1', name: `分类-${label}`, children: [] }],
     links: [{
       id: 'l1',
@@ -25,11 +25,22 @@ function createSnapshot(label) {
       url: 'https://example.com',
       categoryId: 'c1'
     }],
+    growthChildren: [{
+      id: 'growth-child-default',
+      name: '孩子 1',
+      createdAt: 0,
+      updatedAt: 0
+    }],
     growthRecords: [{
       id: 'g1',
-      date: '2026-08-18',
-      height: label.length,
-      weight: label.length
+      childId: 'growth-child-default',
+      measuredAt: '2026-08-18',
+      heightCm: 100 + label.length,
+      weightKg: 15 + label.length,
+      headCircumferenceCm: null,
+      note: '',
+      createdAt: 1,
+      updatedAt: 1
     }]
   }
 }

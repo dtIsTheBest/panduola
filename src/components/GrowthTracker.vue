@@ -10,10 +10,31 @@
           <h2 id="growth-tracker-title">生长曲线</h2>
           <p>持续记录身高、体重和头围，用趋势了解孩子自己的变化。</p>
         </div>
-        <button ref="closeButton" type="button" class="btn btn-secondary growth-close" aria-label="关闭生长曲线" @click="close">
+        <button ref="closeButton" type="button" class="btn btn-secondary growth-close" :disabled="isBusy" aria-label="关闭生长曲线" @click="close">
           <X :size="20" />
         </button>
       </header>
+
+      <section class="child-switcher" aria-label="选择成长档案">
+        <div class="child-select-group">
+          <label for="growth-child-select">当前孩子</label>
+          <select id="growth-child-select" ref="childSelect" v-model="activeChildId" class="form-input child-select" :disabled="isBusy" @change="handleChildChange">
+            <option v-for="child in store.growthChildren" :key="child.id" :value="child.id">{{ child.name }}</option>
+          </select>
+        </div>
+        <div class="child-actions">
+          <button ref="addChildButton" type="button" class="btn btn-secondary btn-sm" :disabled="isBusy" @click="beginAddChild"><Plus :size="15" />新增孩子</button>
+          <button ref="renameChildButton" type="button" class="btn btn-secondary btn-sm" :disabled="isBusy" @click="beginRenameChild"><Edit3 :size="15" />修改名称</button>
+        </div>
+        <form v-if="childEditorMode" class="child-editor" @submit.prevent="saveChild">
+          <label class="sr-only" for="growth-child-name">{{ childEditorMode === 'add' ? '新孩子名称' : '修改孩子名称' }}</label>
+          <input id="growth-child-name" ref="childNameInput" v-model="childName" class="form-input" maxlength="40" :disabled="savingChild" :placeholder="childEditorMode === 'add' ? '例如：二宝' : '输入新的名称'" />
+          <button type="submit" class="btn btn-primary btn-sm" :disabled="isBusy">{{ savingChild ? '保存中…' : '保存' }}</button>
+          <button type="button" class="btn btn-secondary btn-sm" :disabled="isBusy" @click="cancelChildEditor">取消</button>
+          <p v-if="childError" class="child-error" role="alert">{{ childError }}</p>
+        </form>
+        <p class="sr-only" role="status" aria-live="polite">{{ childStatus }}</p>
+      </section>
 
       <div class="growth-body">
         <section class="growth-summary" aria-label="最新成长数据">
@@ -119,31 +140,31 @@
                 <h3 id="growth-form-title">{{ editingId ? '编辑测量记录' : '新增测量记录' }}</h3>
                 <p>建议在相近时段、相似测量条件下记录。</p>
               </div>
-              <button v-if="editingId" type="button" class="btn btn-secondary btn-sm" @click="resetForm">取消编辑</button>
+              <button v-if="editingId" type="button" class="btn btn-secondary btn-sm" :disabled="isBusy" @click="resetForm">取消编辑</button>
             </div>
 
             <form @submit.prevent="saveRecord">
               <div class="form-group">
                 <label class="form-label" for="growth-date">测量日期 *</label>
-                <input id="growth-date" v-model="form.measuredAt" class="form-input" type="date" :max="today" required />
+                <input id="growth-date" v-model="form.measuredAt" class="form-input" type="date" :max="today" :disabled="isBusy" required />
               </div>
               <div class="measurement-inputs">
                 <div class="form-group">
                   <label class="form-label" for="growth-height">身高（cm）*</label>
-                  <input id="growth-height" v-model="form.heightCm" class="form-input" type="number" min="20" max="250" step="0.1" placeholder="例如 105.5" required />
+                  <input id="growth-height" v-model="form.heightCm" class="form-input" type="number" min="20" max="250" step="0.1" placeholder="例如 105.5" :disabled="isBusy" required />
                 </div>
                 <div class="form-group">
                   <label class="form-label" for="growth-weight">体重（kg）*</label>
-                  <input id="growth-weight" v-model="form.weightKg" class="form-input" type="number" min="0.5" max="300" step="0.1" placeholder="例如 16.8" required />
+                  <input id="growth-weight" v-model="form.weightKg" class="form-input" type="number" min="0.5" max="300" step="0.1" placeholder="例如 16.8" :disabled="isBusy" required />
                 </div>
               </div>
               <div class="form-group">
                 <label class="form-label" for="growth-head">头围（cm，可选）</label>
-                <input id="growth-head" v-model="form.headCircumferenceCm" class="form-input" type="number" min="20" max="80" step="0.1" placeholder="婴幼儿阶段可记录" />
+                <input id="growth-head" v-model="form.headCircumferenceCm" class="form-input" type="number" min="20" max="80" step="0.1" placeholder="婴幼儿阶段可记录" :disabled="isBusy" />
               </div>
               <div class="form-group">
                 <label class="form-label" for="growth-note">备注（可选）</label>
-                <textarea id="growth-note" v-model="form.note" class="form-textarea" maxlength="200" placeholder="例如体检、晨起空腹测量等"></textarea>
+                <textarea id="growth-note" v-model="form.note" class="form-textarea" maxlength="200" placeholder="例如体检、晨起空腹测量等" :disabled="isBusy"></textarea>
                 <span class="field-count">{{ form.note.length }}/200</span>
               </div>
 
@@ -152,7 +173,7 @@
                 {{ formError }}
               </div>
 
-              <button type="submit" class="btn btn-primary save-record" :disabled="saving">
+              <button type="submit" class="btn btn-primary save-record" :disabled="isBusy">
                 <Save :size="17" />
                 {{ saving ? '保存中…' : editingId ? '保存修改' : '添加记录' }}
               </button>
@@ -181,10 +202,10 @@
               </div>
               <p v-if="record.note" class="record-note">{{ record.note }}</p>
               <div class="record-actions">
-                <button type="button" class="btn btn-secondary btn-sm" :aria-label="`编辑${record.measuredAt}的成长记录`" @click="editRecord(record)">
+                <button type="button" class="btn btn-secondary btn-sm" :disabled="isBusy" :aria-label="`编辑${record.measuredAt}的成长记录`" @click="editRecord(record)">
                   <Edit3 :size="15" />编辑
                 </button>
-                <button type="button" class="btn btn-danger btn-sm" :aria-label="`删除${record.measuredAt}的成长记录`" @click="deleteRecord(record)">
+                <button type="button" class="btn btn-danger btn-sm" :disabled="isBusy" :aria-label="`删除${record.measuredAt}的成长记录`" @click="deleteRecord(record)">
                   <Trash2 :size="15" />删除
                 </button>
               </div>
@@ -202,10 +223,10 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import {
   AlertCircle, CalendarDays, CircleGauge, ClipboardList, Edit3, Info,
-  LineChart, Ruler, Save, Scale, Trash2, TrendingUp, X
+  LineChart, Plus, Ruler, Save, Scale, Trash2, TrendingUp, X
 } from 'lucide-vue-next'
 import { store, generateId } from '@/data/store'
 import { useDialogFocus } from '@/composables/useDialogFocus'
@@ -222,15 +243,33 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 const dialog = ref(null)
 const closeButton = ref(null)
+const childNameInput = ref(null)
+const childSelect = ref(null)
+const addChildButton = ref(null)
+const renameChildButton = ref(null)
 const activeMetricKey = ref('heightCm')
+const activeChildId = ref('')
+const childEditorMode = ref('')
+const childName = ref('')
+const childError = ref('')
+const childStatus = ref('')
+const savingChild = ref(false)
+const deleting = ref(false)
+const pendingAuthoritativeReset = ref(false)
 const editingId = ref(null)
 const saving = ref(false)
 const formError = ref('')
 const today = getLocalDateInputValue()
 const form = ref(createEmptyForm())
+const isBusy = computed(() => saving.value || savingChild.value || deleting.value)
 
+const activeChild = computed(() => (
+  store.growthChildren.find(child => child.id === activeChildId.value) || null
+))
 const sortedRecords = computed(() => (
-  [...store.growthRecords].sort((a, b) => a.measuredAt.localeCompare(b.measuredAt))
+  store.growthRecords
+    .filter(record => record.childId === activeChildId.value)
+    .sort((a, b) => a.measuredAt.localeCompare(b.measuredAt))
 ))
 const recentRecords = computed(() => [...sortedRecords.value].reverse())
 const latestRecord = computed(() => sortedRecords.value.at(-1) || null)
@@ -245,6 +284,52 @@ const { handleDialogKeydown } = useDialogFocus({
   initialFocus: () => closeButton.value,
   onEscape: close
 })
+
+watch(
+  () => store.growthChildren.map(child => child.id),
+  childIds => {
+    if (!childIds.includes(activeChildId.value)) {
+      activeChildId.value = childIds[0] || ''
+      resetForm()
+      cancelChildEditor(false)
+    }
+  },
+  { immediate: true }
+)
+
+watch(() => store.activeSpaceKey, () => {
+  activeChildId.value = store.growthChildren[0]?.id || ''
+  resetForm()
+  cancelChildEditor(false)
+  childStatus.value = ''
+})
+
+watch(() => store.dataGeneration, () => {
+  if (!props.visible) {
+    resetForm()
+    cancelChildEditor(false)
+    childStatus.value = ''
+    return
+  }
+  if (isBusy.value) {
+    pendingAuthoritativeReset.value = true
+    return
+  }
+  resetForAuthoritativeUpdate()
+})
+
+watch(isBusy, busy => {
+  if (busy || !pendingAuthoritativeReset.value) return
+  pendingAuthoritativeReset.value = false
+  resetForAuthoritativeUpdate()
+})
+
+function resetForAuthoritativeUpdate() {
+  resetForm()
+  cancelChildEditor(false)
+  childStatus.value = '数据已更新，请重新操作'
+  void nextTick(() => childSelect.value?.focus())
+}
 
 function getLocalDateInputValue(date = new Date()) {
   const year = date.getFullYear()
@@ -289,9 +374,98 @@ function resetForm() {
   form.value = createEmptyForm()
 }
 
+function handleChildChange() {
+  if (isBusy.value) return
+  resetForm()
+  cancelChildEditor(false)
+  childStatus.value = activeChild.value ? `已切换到${activeChild.value.name}` : ''
+}
+
+function beginAddChild() {
+  if (isBusy.value) return
+  childEditorMode.value = 'add'
+  childName.value = ''
+  childError.value = ''
+  void nextTick(() => childNameInput.value?.focus())
+}
+
+function beginRenameChild() {
+  if (isBusy.value) return
+  if (!activeChild.value) return
+  childEditorMode.value = 'rename'
+  childName.value = activeChild.value.name
+  childError.value = ''
+  void nextTick(() => childNameInput.value?.focus())
+}
+
+function cancelChildEditor(restoreFocus = true) {
+  const previousMode = childEditorMode.value
+  childEditorMode.value = ''
+  childName.value = ''
+  childError.value = ''
+  if (restoreFocus) {
+    void nextTick(() => (
+      previousMode === 'add' ? addChildButton.value : renameChildButton.value
+    )?.focus())
+  }
+}
+
+function validateChildName() {
+  const name = childName.value.trim()
+  if (!name) return '请输入孩子名称'
+  if (Array.from(name).length > 20) return '孩子名称不能超过 20 个字符'
+  const duplicate = store.growthChildren.some(child => (
+    (childEditorMode.value === 'add' || child.id !== activeChildId.value) &&
+    child.name.toLowerCase() === name.toLowerCase()
+  ))
+  return duplicate ? '孩子名称不能重复' : ''
+}
+
+async function saveChild() {
+  if (isBusy.value) return
+  childError.value = validateChildName()
+  if (childError.value) return
+
+  savingChild.value = true
+  const operationSpaceKey = store.activeSpaceKey
+  const operationMode = childEditorMode.value
+  const operationGeneration = store.dataGeneration
+  const now = Date.now()
+  try {
+    if (operationMode === 'add') {
+      const childId = generateId('growth-child-')
+      await store.addGrowthChild(
+        { id: childId, name: childName.value.trim(), createdAt: now, updatedAt: now },
+        { expectedDataGeneration: operationGeneration }
+      )
+      if (store.activeSpaceKey === operationSpaceKey) {
+        activeChildId.value = childId
+        resetForm()
+        childStatus.value = '孩子档案已新增'
+      }
+    } else {
+      await store.renameGrowthChild(activeChildId.value, childName.value.trim(), now, {
+        expectedDataGeneration: operationGeneration
+      })
+      if (store.activeSpaceKey === operationSpaceKey) childStatus.value = '孩子名称已更新'
+    }
+    if (store.activeSpaceKey === operationSpaceKey) cancelChildEditor()
+  } catch (error) {
+    if (store.activeSpaceKey === operationSpaceKey) {
+      childError.value = error instanceof Error ? error.message : '孩子档案保存失败'
+    }
+  } finally {
+    savingChild.value = false
+  }
+}
+
 function validateForm() {
   if (form.value.measuredAt > today) return '测量日期不能晚于今天'
-  const duplicate = store.growthRecords.some(record => (
+  const existing = editingId.value
+    ? sortedRecords.value.find(record => record.id === editingId.value)
+    : null
+  const keepsExistingDate = existing?.measuredAt === form.value.measuredAt
+  const duplicate = !keepsExistingDate && sortedRecords.value.some(record => (
     record.measuredAt === form.value.measuredAt && record.id !== editingId.value
   ))
   if (duplicate) return '该日期已经有记录，请编辑现有记录或选择其他日期'
@@ -307,16 +481,25 @@ function validateForm() {
 }
 
 async function saveRecord() {
+  if (isBusy.value) return
+  if (!activeChildId.value) {
+    formError.value = '请先选择孩子'
+    return
+  }
   formError.value = validateForm()
   if (formError.value) return
 
   saving.value = true
+  const operationSpaceKey = store.activeSpaceKey
+  const operationChildId = activeChildId.value
+  const operationGeneration = store.dataGeneration
   const existing = editingId.value
-    ? store.growthRecords.find(record => record.id === editingId.value)
+    ? sortedRecords.value.find(record => record.id === editingId.value)
     : null
   const now = Date.now()
   const record = {
     id: editingId.value || generateId('growth-'),
+    childId: activeChildId.value,
     measuredAt: form.value.measuredAt,
     heightCm: Number(form.value.heightCm),
     weightKg: Number(form.value.weightKg),
@@ -329,16 +512,23 @@ async function saveRecord() {
   }
 
   try {
-    await store.upsertGrowthRecord(record)
-    resetForm()
+    await store.upsertGrowthRecord(record, { expectedDataGeneration: operationGeneration })
+    if (
+      store.activeSpaceKey === operationSpaceKey &&
+      activeChildId.value === operationChildId
+    ) resetForm()
   } catch {
-    formError.value = '记录保存失败，请稍后重试'
+    if (
+      store.activeSpaceKey === operationSpaceKey &&
+      activeChildId.value === operationChildId
+    ) formError.value = '记录保存失败，请稍后重试'
   } finally {
     saving.value = false
   }
 }
 
 function editRecord(record) {
+  if (isBusy.value) return
   editingId.value = record.id
   formError.value = ''
   form.value = {
@@ -352,21 +542,50 @@ function editRecord(record) {
 }
 
 async function deleteRecord(record) {
+  if (isBusy.value) return
   if (!confirm(`确定删除 ${formatDate(record.measuredAt)} 的成长记录吗？`)) return
+  deleting.value = true
+  const operationSpaceKey = store.activeSpaceKey
+  const operationChildId = activeChildId.value
+  const operationGeneration = store.dataGeneration
   try {
-    await store.deleteGrowthRecord(record.id)
-    if (editingId.value === record.id) resetForm()
+    const deleted = await store.deleteGrowthRecord(record.id, operationChildId, {
+      expectedDataGeneration: operationGeneration
+    })
+    if (!deleted) throw new Error('记录归属已变化')
+    if (
+      store.activeSpaceKey === operationSpaceKey &&
+      activeChildId.value === operationChildId &&
+      editingId.value === record.id
+    ) resetForm()
   } catch {
-    alert('成长记录删除失败，请稍后重试')
+    if (store.activeSpaceKey === operationSpaceKey) {
+      alert('成长记录删除失败，请稍后重试')
+    }
+  } finally {
+    deleting.value = false
   }
 }
 
 function close() {
+  if (isBusy.value) return
   emit('close')
 }
 </script>
 
 <style scoped>
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .growth-overlay {
   position: fixed;
   inset: 0;
@@ -444,6 +663,56 @@ function close() {
   flex: 0 0 40px;
   padding: 0;
   border-radius: 50%;
+}
+
+.child-switcher {
+  display: flex;
+  align-items: end;
+  gap: 0.65rem;
+  padding: 0.75rem 1rem;
+  background-color: var(--surface-soft);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.child-select-group {
+  display: grid;
+  flex: 1;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.child-select-group label {
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 650;
+}
+
+.child-select {
+  min-width: 0;
+}
+
+.child-actions,
+.child-editor {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.child-editor {
+  flex: 1.35;
+  flex-wrap: wrap;
+}
+
+.child-editor .form-input {
+  flex: 1;
+  min-width: 9rem;
+}
+
+.child-error {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--danger-dark);
+  font-size: 0.7rem;
 }
 
 .growth-body {
@@ -825,6 +1094,25 @@ function close() {
 }
 
 @media (max-width: 640px) {
+  .child-switcher {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .child-actions,
+  .child-editor {
+    width: 100%;
+  }
+
+  .child-actions .btn {
+    flex: 1;
+  }
+
+  .child-editor .form-input {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+
   .growth-overlay {
     align-items: flex-end;
     padding: 0;
