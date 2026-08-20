@@ -1,7 +1,7 @@
 import { SYNC_DEFAULTS } from '../account/config.js'
 import { AppError, ERROR_CODES } from '../account/errors.js'
 
-export const SUPPORTED_SNAPSHOT_SCHEMA_VERSION = 3
+export const SUPPORTED_SNAPSHOT_SCHEMA_VERSION = 4
 
 function serializeCanonicalValue(value, ancestors) {
   if (value === null || typeof value === 'string' || typeof value === 'boolean') {

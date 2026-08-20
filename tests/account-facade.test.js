@@ -14,7 +14,7 @@ function clone(value) {
 
 function createSnapshot(label) {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     categories: [{ id: 'c1', name: label, children: [] }],
     links: [],
     growthChildren: [{
@@ -744,7 +744,7 @@ test('诊断导出只传递状态摘要，不包含账号凭据和业务快照',
   const serialized = JSON.stringify(report)
 
   assert.equal(receivedStatus.syncStatus, 'idle')
-  assert.equal(receivedStatus.schemaVersion, 3)
+  assert.equal(receivedStatus.schemaVersion, 4)
   assert.equal(receivedStatus.recoveryCopyCount, 0)
   assert.equal(receivedStatus.isSyncConfigured, true)
   assert.equal('snapshot' in receivedStatus, false)

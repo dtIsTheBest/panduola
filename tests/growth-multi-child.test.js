@@ -166,8 +166,8 @@ test('Schema v3 接受同日不同孩子并校验孩子和记录边界', () => {
     /成长记录 ID 不能重复/
   )
   assert.throws(
-    () => validateImportData({ ...createV3Snapshot(), schemaVersion: 4 }),
-    /不支持的快照版本：4/
+    () => validateImportData({ ...createV3Snapshot(), schemaVersion: 5 }),
+    /不支持的快照版本：5/
   )
   assert.throws(
     () => validateImportData({ ...createV3Snapshot(), schemaVersion: '3' }),
@@ -223,7 +223,7 @@ test('孩子与成长记录 CRUD 按归属隔离并原子持久化', async () =>
   assert.deepEqual(store.getSnapshot(), snapshotBeforeFailure)
 
   const savedEnvelope = JSON.parse(storageValues.get('panduola_space:guest'))
-  assert.equal(savedEnvelope.snapshot.schemaVersion, 3)
+  assert.equal(savedEnvelope.snapshot.schemaVersion, 4)
   assert.deepEqual(savedEnvelope.snapshot.growthRecords.map(record => record.childId), ['child-b'])
 })
 

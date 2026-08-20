@@ -103,7 +103,7 @@ test('旧数据仅在新游客空间写入成功后完成迁移', async () => {
   const repository = createRepository(storage)
 
   const migrated = await repository.load(GUEST_SPACE_KEY)
-  assert.equal(migrated.snapshot.schemaVersion, 3)
+  assert.equal(migrated.snapshot.schemaVersion, 4)
   assert.equal(migrated.snapshot.growthChildren[0].id, 'growth-child-default')
   assert.equal(migrated.snapshot.growthRecords[0].childId, 'growth-child-default')
   assert.equal(migrated.snapshot.categories[0].name, '旧分类')
@@ -145,7 +145,7 @@ test('现有 Web v2 空间 envelope 迁移为 v3 并保留 revision 与同步元
   }))
   const envelope = await createRepository(storage).load(GUEST_SPACE_KEY)
 
-  assert.equal(envelope.snapshot.schemaVersion, 3)
+  assert.equal(envelope.snapshot.schemaVersion, 4)
   assert.equal(envelope.snapshot.growthChildren[0].id, 'growth-child-default')
   assert.equal(envelope.localRevision, 7)
   assert.equal(envelope.sync.remoteRevision, 3)

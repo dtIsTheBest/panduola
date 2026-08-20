@@ -280,7 +280,7 @@ function importData(event) {
   reader.onload = async (e) => {
     try {
       const data = JSON.parse(e.target.result)
-      if (!confirm('导入备份将覆盖当前资源、分类、孩子档案和生长记录，确定继续吗？')) return
+      if (!confirm('导入备份将覆盖当前资源、分类、孩子档案、生长记录和成长日程，确定继续吗？')) return
 
       await store.replaceData(data)
       selectedCategory.value = null

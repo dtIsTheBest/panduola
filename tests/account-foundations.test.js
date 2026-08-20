@@ -32,7 +32,7 @@ function createLegacyJwt(role) {
 
 function createSnapshot(overrides = {}) {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     categories: [{ id: 'c1', name: '育儿', children: [] }],
     links: [{
       id: 'l1',
@@ -202,11 +202,11 @@ test('快照大小按 UTF-8 字节计算并执行严格边界', () => {
 
 test('快照拒绝未来 Schema、非法结构和不可序列化字段', () => {
   assert.throws(
-    () => canonicalizeSnapshot(createSnapshot({ schemaVersion: 4 })),
+    () => canonicalizeSnapshot(createSnapshot({ schemaVersion: 5 })),
     error => error.code === ERROR_CODES.UNSUPPORTED_SCHEMA
   )
   assert.throws(
-    () => canonicalizeSnapshot({ schemaVersion: 3, categories: [], links: null }),
+    () => canonicalizeSnapshot({ schemaVersion: 4, categories: [], links: null }),
     error => error.code === ERROR_CODES.INVALID_REMOTE_DATA
   )
   assert.throws(
@@ -368,7 +368,7 @@ test('诊断指标和导出报告拒绝未知字段与业务数据', () => {
   const report = diagnostics.exportReport({
     syncStatus: 'idle',
     lastSyncedAt: '2026-07-31T07:59:00.000Z',
-    schemaVersion: 3,
+    schemaVersion: 4,
     remoteRevision: 3,
     isDirty: false,
     payloadBytes: 100,

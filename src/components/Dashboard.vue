@@ -242,6 +242,7 @@
       @close="showVaccineGuide = false"
     />
     <GrowthTracker :visible="showGrowthTracker" @close="showGrowthTracker = false" />
+    <GrowthSchedule :visible="showGrowthSchedule" @close="showGrowthSchedule = false" />
   </div>
 </template>
 
@@ -259,6 +260,7 @@ import { openExternalLink } from '@/utils/externalLinks'
 import { useCategoryLinkCounts } from '@/composables/useCategoryLinkCounts'
 import AISearch from './AISearch.vue'
 import GrowthTracker from './GrowthTracker.vue'
+import GrowthSchedule from './GrowthSchedule.vue'
 import VaccineGuide from './VaccineGuide.vue'
 
 const props = defineProps({
@@ -272,6 +274,7 @@ defineEmits(['category-select', 'view-all-links', 'clear-age-stage', 'stat-click
 
 const activeContentTab = ref('quick')
 const showGrowthTracker = ref(false)
+const showGrowthSchedule = ref(false)
 const showVaccineGuide = ref(false)
 const { getCategoryLinkCount } = useCategoryLinkCounts()
 
@@ -545,6 +548,15 @@ const quickActions = computed(() => {
         color: '#3b82f6'
       })
     }
+    if (!actions.some(action => action.id === 'schedule')) {
+      supplementalActions.push({
+        id: 'schedule',
+        icon: Calendar,
+        title: '成长日程',
+        description: '安排今天和接下来的事项',
+        color: '#f59e0b'
+      })
+    }
     return [...supplementalActions, ...actions]
   }
   return defaultQuickActions
@@ -659,6 +671,10 @@ function handleAction(action) {
   }
   if (action.id === 'growth') {
     showGrowthTracker.value = true
+    return
+  }
+  if (action.id === 'schedule') {
+    showGrowthSchedule.value = true
     return
   }
   alert(`${action.title}功能开发中`)

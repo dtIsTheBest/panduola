@@ -201,12 +201,12 @@ test('Tauri 游客旧数据在新空间成功写入后完成迁移并保留旧�
 
   const migrated = await createTauriRepository(invoke).load(GUEST_SPACE_KEY)
   assert.equal(migrated.snapshot.links[0].title, '旧数据')
-  assert.equal(migrated.snapshot.schemaVersion, 3)
+  assert.equal(migrated.snapshot.schemaVersion, 4)
   assert.equal(migrated.snapshot.growthRecords[0].childId, 'growth-child-default')
   const saveCall = calls.find(([command]) => command === 'save_space_file')
   assert.equal(saveCall[1].ownerKey, GUEST_SPACE_KEY)
   assert.equal(JSON.parse(saveCall[1].data).ownerKey, GUEST_SPACE_KEY)
-  assert.equal(JSON.parse(saveCall[1].data).snapshot.schemaVersion, 3)
+  assert.equal(JSON.parse(saveCall[1].data).snapshot.schemaVersion, 4)
   assert.equal(
     calls.some(([command]) => command === 'quarantine_data_file'),
     false
@@ -240,7 +240,7 @@ test('Tauri 现有 v2 空间 envelope 迁移为 v3 并保留同步元数据', as
   }
   const envelope = await createTauriRepository(invoke).load(GUEST_SPACE_KEY)
 
-  assert.equal(envelope.snapshot.schemaVersion, 3)
+  assert.equal(envelope.snapshot.schemaVersion, 4)
   assert.equal(envelope.snapshot.growthChildren[0].id, 'growth-child-default')
   assert.equal(envelope.localRevision, 8)
   assert.equal(envelope.sync.remoteRevision, 4)

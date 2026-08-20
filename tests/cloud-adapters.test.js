@@ -33,7 +33,7 @@ function createConfig() {
 
 function createSnapshot(overrides = {}) {
   return validateImportData({
-    schemaVersion: 3,
+    schemaVersion: 4,
     categories: [{ id: 'c1', name: '育儿', children: [] }],
     links: [{
       id: 'l1',
@@ -49,6 +49,8 @@ function createSnapshot(overrides = {}) {
       updatedAt: 0
     }],
     growthRecords: [],
+    scheduleItems: [],
+    scheduleCompletions: [],
     ...overrides
   })
 }
@@ -454,7 +456,7 @@ test('云端 load 先验证原始 v2 hash 再迁移为 v3', async () => {
   })
 
   const remote = await repository.load()
-  assert.equal(remote.snapshot.schemaVersion, 3)
+  assert.equal(remote.snapshot.schemaVersion, 4)
   assert.equal(remote.snapshot.growthRecords[0].childId, 'growth-child-default')
   assert.equal(remote.payloadHash, preparedLegacy.hash)
 })
@@ -470,7 +472,7 @@ test('云端 load 拒绝 hash 正确但未规范化的当前 v3 payload', async 
   }
   const prepared = await prepareReadableSnapshot(rawSnapshot)
   const row = {
-    schema_version: 3,
+    schema_version: 4,
     payload: rawSnapshot,
     payload_hash: prepared.hash,
     revision: 1,
@@ -531,7 +533,7 @@ test('云端 create 不接受 userId 且仅回读元数据', async () => {
   const { hash } = await prepareSnapshot(snapshot)
   const result = {
     data: {
-      schema_version: 3,
+      schema_version: 4,
       payload_hash: hash,
       revision: 1,
       updated_at: UPDATED_AT,

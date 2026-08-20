@@ -2,12 +2,17 @@ import { reactive } from 'vue'
 import { AppError, ERROR_CODES } from '../account/errors.js'
 import { isSafeExternalUrl } from '../utils/externalLinks.js'
 import {
+  doesScheduleOccurOnDate,
+  normalizeScheduleCompletion,
+  normalizeScheduleItem
+} from '../utils/growthSchedule.js'
+import {
   GUEST_SPACE_KEY,
   assertValidSpaceKey,
   createDataSpaceRepository
 } from './dataSpaceRepository.js'
 
-export const CURRENT_SCHEMA_VERSION = 3
+export const CURRENT_SCHEMA_VERSION = 4
 export const DEFAULT_GROWTH_CHILD_ID = 'growth-child-default'
 export const MAX_GROWTH_CHILDREN = 20
 export const MAX_GROWTH_CHILD_NAME_LENGTH = 20
@@ -637,19 +642,20 @@ function normalizeDataInternal(rawData, strict) {
     throw new TypeError('growthRecords 必须是数组')
   }
 
-  const isLegacy = sourceSchemaVersion < CURRENT_SCHEMA_VERSION
+  const isLegacyGrowth = sourceSchemaVersion < 3
+  const isLegacySchedule = sourceSchemaVersion < 4
   const categories = rawData.categories.map((category, index) => (
     normalizeCategory(category, String(index), strict)
   ))
   const links = rawData.links.map((link, index) => normalizeLink(link, index, strict))
-  const growthChildren = isLegacy
+  const growthChildren = isLegacyGrowth
     ? [createDefaultGrowthChild()]
     : normalizeGrowthChildren(rawData.growthChildren)
   const childIds = new Set(growthChildren.map(child => child.id))
   const growthRecords = (Array.isArray(rawData.growthRecords) ? rawData.growthRecords : [])
-    .map((record, index) => normalizeGrowthRecord(record, index, strict || !isLegacy, {
+    .map((record, index) => normalizeGrowthRecord(record, index, strict || !isLegacyGrowth, {
       childIds,
-      isLegacy
+      isLegacy: isLegacyGrowth
     }))
     .filter(Boolean)
 
@@ -657,7 +663,7 @@ function normalizeDataInternal(rawData, strict) {
   for (let index = 0; index < growthRecords.length; index += 1) {
     let record = growthRecords[index]
     if (recordIds.has(record.id)) {
-      if (!isLegacy) {
+      if (!isLegacyGrowth) {
         throw new TypeError('成长记录 ID 不能重复')
       }
       record = {
@@ -667,6 +673,28 @@ function normalizeDataInternal(rawData, strict) {
       growthRecords[index] = record
     }
     recordIds.add(record.id)
+  }
+
+  const rawScheduleItems = isLegacySchedule ? [] : rawData.scheduleItems
+  const rawScheduleCompletions = isLegacySchedule ? [] : rawData.scheduleCompletions
+  if (!Array.isArray(rawScheduleItems) || !Array.isArray(rawScheduleCompletions)) {
+    throw new TypeError('scheduleItems 和 scheduleCompletions 必须是数组')
+  }
+  const scheduleItems = rawScheduleItems.map(item => normalizeScheduleItem(item, childIds))
+  const scheduleIds = new Set()
+  for (const item of scheduleItems) {
+    if (scheduleIds.has(item.id)) throw new TypeError('成长日程 ID 不能重复')
+    scheduleIds.add(item.id)
+  }
+  const scheduleItemsById = new Map(scheduleItems.map(item => [item.id, item]))
+  const scheduleCompletions = rawScheduleCompletions.map(completion => (
+    normalizeScheduleCompletion(completion, scheduleItemsById)
+  ))
+  const completionKeys = new Set()
+  for (const completion of scheduleCompletions) {
+    const key = `${completion.scheduleId}:${completion.occurrenceDate}`
+    if (completionKeys.has(key)) throw new TypeError('同一日程实例不能重复完成')
+    completionKeys.add(key)
   }
 
   if (strict) {
@@ -685,7 +713,9 @@ function normalizeDataInternal(rawData, strict) {
     categories,
     links,
     growthChildren,
-    growthRecords
+    growthRecords,
+    scheduleItems,
+    scheduleCompletions
   }
 }
 
@@ -748,6 +778,8 @@ function configureGuestSpaceChanges(storeInstance) {
           storeInstance.links = envelope.snapshot.links
           storeInstance.growthChildren = envelope.snapshot.growthChildren
           storeInstance.growthRecords = envelope.snapshot.growthRecords
+          storeInstance.scheduleItems = envelope.snapshot.scheduleItems
+          storeInstance.scheduleCompletions = envelope.snapshot.scheduleCompletions
           storeInstance.dataGeneration += 1
         })
       )).catch(() => {})
@@ -801,6 +833,8 @@ async function commitData(
       storeInstance.links = envelope.snapshot.links
       storeInstance.growthChildren = envelope.snapshot.growthChildren
       storeInstance.growthRecords = envelope.snapshot.growthRecords
+      storeInstance.scheduleItems = envelope.snapshot.scheduleItems
+      storeInstance.scheduleCompletions = envelope.snapshot.scheduleCompletions
       storeInstance.dataGeneration += 1
     }
     throw error
@@ -809,6 +843,8 @@ async function commitData(
   storeInstance.links = data.links
   storeInstance.growthChildren = data.growthChildren
   storeInstance.growthRecords = data.growthRecords
+  storeInstance.scheduleItems = data.scheduleItems
+  storeInstance.scheduleCompletions = data.scheduleCompletions
   if (authoritative) storeInstance.dataGeneration += 1
   if (source !== 'cloud') {
     emitLocalCommit(data, source)
@@ -820,6 +856,8 @@ export const store = reactive({
   links: cloneData(defaultLinks),
   growthChildren: [createDefaultGrowthChild()],
   growthRecords: [],
+  scheduleItems: [],
+  scheduleCompletions: [],
   dataGeneration: 0,
   initialized: false,
   activeSpaceKey: GUEST_SPACE_KEY,
@@ -828,14 +866,18 @@ export const store = reactive({
     categories = this.categories,
     links = this.links,
     growthRecords = this.growthRecords,
-    growthChildren = this.growthChildren
+    growthChildren = this.growthChildren,
+    scheduleItems = this.scheduleItems,
+    scheduleCompletions = this.scheduleCompletions
   ) {
     return normalizeData({
       schemaVersion: CURRENT_SCHEMA_VERSION,
       categories,
       links,
       growthChildren,
-      growthRecords
+      growthRecords,
+      scheduleItems,
+      scheduleCompletions
     })
   },
 
@@ -848,6 +890,8 @@ export const store = reactive({
       this.links = data.links
       this.growthChildren = data.growthChildren
       this.growthRecords = data.growthRecords
+      this.scheduleItems = data.scheduleItems
+      this.scheduleCompletions = data.scheduleCompletions
       this.dataGeneration += 1
       this.initialized = true
       configureGuestSpaceChanges(this)
@@ -882,6 +926,8 @@ export const store = reactive({
         this.links = data.links
         this.growthChildren = data.growthChildren
         this.growthRecords = data.growthRecords
+        this.scheduleItems = data.scheduleItems
+        this.scheduleCompletions = data.scheduleCompletions
         this.dataGeneration += 1
         this.initialized = true
         configureGuestSpaceChanges(this)
@@ -958,6 +1004,8 @@ export const store = reactive({
         this.links = data.links
         this.growthChildren = data.growthChildren
         this.growthRecords = data.growthRecords
+        this.scheduleItems = data.scheduleItems
+        this.scheduleCompletions = data.scheduleCompletions
         this.dataGeneration += 1
         this.initialized = true
         configureGuestSpaceChanges(this)
@@ -1062,6 +1110,8 @@ export const store = reactive({
         this.links = envelope.snapshot.links
         this.growthChildren = envelope.snapshot.growthChildren
         this.growthRecords = envelope.snapshot.growthRecords
+        this.scheduleItems = envelope.snapshot.scheduleItems
+        this.scheduleCompletions = envelope.snapshot.scheduleCompletions
         this.dataGeneration += 1
         return true
       })
@@ -1193,6 +1243,98 @@ export const store = reactive({
       if (links.length === this.links.length) return false
 
       const data = this.getSnapshot(this.categories, links)
+      await commitData(this, data)
+      return true
+    })
+  },
+
+  async upsertScheduleItem(rawItem, { expectedDataGeneration } = {}) {
+    return enqueueMutation(async () => {
+      if (expectedDataGeneration !== undefined && this.dataGeneration !== expectedDataGeneration) {
+        throw new TypeError('数据已更新，请重新操作')
+      }
+      const childIds = new Set(this.growthChildren.map(child => child.id))
+      const item = normalizeScheduleItem(rawItem, childIds)
+      const scheduleItems = [...this.scheduleItems]
+      const index = scheduleItems.findIndex(current => current.id === item.id)
+      if (index >= 0) scheduleItems[index] = item
+      else scheduleItems.push(item)
+      const scheduleCompletions = this.scheduleCompletions.filter(completion => (
+        completion.scheduleId !== item.id ||
+        doesScheduleOccurOnDate(item, completion.occurrenceDate)
+      ))
+      const data = this.getSnapshot(
+        this.categories,
+        this.links,
+        this.growthRecords,
+        this.growthChildren,
+        scheduleItems,
+        scheduleCompletions
+      )
+      await commitData(this, data)
+      return true
+    })
+  },
+
+  async deleteScheduleItem(id, { expectedDataGeneration } = {}) {
+    return enqueueMutation(async () => {
+      if (expectedDataGeneration !== undefined && this.dataGeneration !== expectedDataGeneration) {
+        throw new TypeError('数据已更新，请重新操作')
+      }
+      const scheduleItems = this.scheduleItems.filter(item => item.id !== id)
+      if (scheduleItems.length === this.scheduleItems.length) return false
+      const scheduleCompletions = this.scheduleCompletions.filter(item => item.scheduleId !== id)
+      const data = this.getSnapshot(
+        this.categories,
+        this.links,
+        this.growthRecords,
+        this.growthChildren,
+        scheduleItems,
+        scheduleCompletions
+      )
+      await commitData(this, data)
+      return true
+    })
+  },
+
+  async setScheduleOccurrenceCompleted(
+    scheduleId,
+    occurrenceDate,
+    completed,
+    { expectedDataGeneration } = {}
+  ) {
+    return enqueueMutation(async () => {
+      if (expectedDataGeneration !== undefined && this.dataGeneration !== expectedDataGeneration) {
+        throw new TypeError('数据已更新，请重新操作')
+      }
+      if (typeof completed !== 'boolean') throw new TypeError('completed 必须是布尔值')
+      const scheduleItem = this.scheduleItems.find(item => item.id === scheduleId)
+      if (!scheduleItem) return false
+      if (!doesScheduleOccurOnDate(scheduleItem, occurrenceDate)) {
+        throw new TypeError('该日期不是日程发生日期')
+      }
+      const keyMatches = item => (
+        item.scheduleId === scheduleId && item.occurrenceDate === occurrenceDate
+      )
+      const existingCompletion = this.scheduleCompletions.find(keyMatches)
+      if (completed === Boolean(existingCompletion)) return false
+      let scheduleCompletions = this.scheduleCompletions.filter(item => !keyMatches(item))
+      if (completed) {
+        scheduleCompletions.push({
+          id: generateId('schedule-completion-'),
+          scheduleId,
+          occurrenceDate,
+          completedAt: Date.now()
+        })
+      }
+      const data = this.getSnapshot(
+        this.categories,
+        this.links,
+        this.growthRecords,
+        this.growthChildren,
+        this.scheduleItems,
+        scheduleCompletions
+      )
       await commitData(this, data)
       return true
     })

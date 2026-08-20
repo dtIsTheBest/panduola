@@ -16,7 +16,7 @@ function clone(value) {
 
 function createSnapshot(label) {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     categories: [{ id: 'c1', name: `分类-${label}`, children: [] }],
     links: [{
       id: 'l1',
