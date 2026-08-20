@@ -6,9 +6,9 @@
           <Menu :size="20" />
         </button>
         <button type="button" class="logo" aria-label="返回首页" @click="$emit('view-change', 'dashboard')">
-          <Sparkles :size="28" />
-          <span class="logo-text">潘多拉</span>
-          <span class="logo-subtitle">家庭成长资源库</span>
+          <Sprout :size="28" />
+          <span class="logo-text">岁序成章</span>
+          <span class="logo-subtitle">全龄家庭成长指南</span>
         </button>
         <div class="header-nav">
           <button 
@@ -72,7 +72,7 @@ import {
   LoaderCircle,
   Menu,
   RefreshCw,
-  Sparkles,
+  Sprout,
   UserRound
 } from 'lucide-vue-next'
 
@@ -170,9 +170,9 @@ const accountAriaLabel = computed(() => (
   box-sizing: content-box;
   padding: 0.48rem;
   color: white;
-  background: linear-gradient(135deg, var(--accent-color), #ff9a6e);
+  background: linear-gradient(135deg, var(--primary-color), #d99a2b);
   border-radius: 0.9rem;
-  box-shadow: 0 9px 20px rgba(255, 122, 104, 0.22);
+  box-shadow: 0 9px 20px rgba(31, 118, 108, 0.22);
 }
 
 .logo-text {

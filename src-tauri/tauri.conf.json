@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "潘多拉",
+  "productName": "岁序成章",
   "version": "1.0.0",
   "identifier": "com.panduola.app",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "潘多拉 - 带娃百科导航",
+        "title": "岁序成章｜全龄家庭成长指南",
         "width": 1200,
         "height": 800,
         "resizable": true,

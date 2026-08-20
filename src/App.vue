@@ -92,7 +92,7 @@
     
     <footer class="footer">
       <div class="container">
-        <p>潘多拉 · 把分散的家庭成长资源整理得更清楚</p>
+        <p>岁序成章 · 循年龄之序，见成长成章</p>
       </div>
     </footer>
   </div>
@@ -262,7 +262,8 @@ function exportData() {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `panduola-backup-${new Date().toISOString().split('T')[0]}.json`
+  const exportDate = new Date().toISOString().split('T')[0]
+  a.download = `岁序成章-备份-${exportDate}.json`
   document.body.appendChild(a)
   try {
     a.click()
