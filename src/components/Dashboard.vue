@@ -36,23 +36,25 @@
     </div>
 
     <div class="stats-row">
-      <button type="button" class="stat-card stat-link" @click="$emit('stat-click', { type: 'categories' })">
+      <button type="button" class="stat-card stat-link" @click="$emit('stat-click', { type: 'all' })">
         <div class="stat-icon" style="background-color: rgba(59, 130, 246, 0.15)">
           <FolderOpen :size="20" style="color: #3b82f6" />
         </div>
         <div class="stat-info">
-          <div class="stat-value">{{ totalCategories }}</div>
-          <div class="stat-label">资源分类</div>
+          <div class="stat-value">{{ totalLinks }}</div>
+          <div class="stat-label">资源库</div>
+          <div class="stat-detail">{{ totalCategories }} 个分类</div>
         </div>
         <ChevronRight :size="16" class="stat-arrow" />
       </button>
-      <button type="button" class="stat-card stat-link" @click="$emit('stat-click', { type: 'all' })">
+      <button type="button" class="stat-card stat-link" @click="openAllTools">
         <div class="stat-icon" style="background-color: rgba(16, 185, 129, 0.15)">
-          <Link :size="20" style="color: #10b981" />
+          <Wrench :size="20" style="color: #10b981" />
         </div>
         <div class="stat-info">
-          <div class="stat-value">{{ totalLinks }}</div>
-          <div class="stat-label">全部资源</div>
+          <div class="stat-value">{{ defaultQuickActions.length }}</div>
+          <div class="stat-label">全部工具</div>
+          <div class="stat-detail">集中查看实用功能</div>
         </div>
         <ChevronRight :size="16" class="stat-arrow" />
       </button>
@@ -100,9 +102,10 @@
         </button>
       </div>
 
-      <transition name="content-tab" mode="out-in">
+      <transition name="content-tab" mode="out-in" @after-enter="handleContentPanelEntered">
         <div
           id="dashboard-content-panel"
+          ref="contentPanel"
           :key="activeContentTab"
           class="content-tab-panel"
           role="tabpanel"
@@ -111,7 +114,7 @@
         >
           <div v-if="activeContentTab === 'quick'" class="quick-actions">
             <button
-              v-for="action in quickActions"
+              v-for="action in displayedQuickActions"
               :key="action.id"
               type="button"
               class="action-card"
@@ -248,7 +251,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import {
   ChevronRight, Globe, ExternalLink, BookOpen, Syringe,
   Activity, Calendar, Calculator, Clock, TrendingUp, Users,
@@ -275,6 +278,9 @@ const props = defineProps({
 defineEmits(['category-select', 'view-all-links', 'clear-age-stage', 'stat-click'])
 
 const activeContentTab = ref('quick')
+const contentPanel = ref(null)
+const showAllTools = ref(false)
+const shouldFocusContentPanel = ref(false)
 const showGrowthTracker = ref(false)
 const showGrowthSchedule = ref(false)
 const showFoodCalculator = ref(false)
@@ -574,6 +580,10 @@ const quickActions = computed(() => {
   return defaultQuickActions
 })
 
+const displayedQuickActions = computed(() => (
+  showAllTools.value ? defaultQuickActions : quickActions.value
+))
+
 const popularCategories = computed(() => {
   let categories = store.categories
 
@@ -617,12 +627,41 @@ const defaultLinks = computed(() => {
 })
 
 const contentTabs = computed(() => [
-  { id: 'quick', label: '实用工具', icon: Rocket, count: quickActions.value.length },
+  {
+    id: 'quick',
+    label: showAllTools.value ? '全部工具' : '实用工具',
+    icon: Rocket,
+    count: displayedQuickActions.value.length
+  },
   { id: 'recent', label: '最近收录', icon: Clock, count: recentLinks.value.length },
   { id: 'popular', label: '热门主题', icon: FolderOpen, count: popularCategories.value.length },
   { id: 'recommended', label: '精选资源', icon: Award, count: defaultLinks.value.length },
   { id: 'favorites', label: '我的收藏', icon: Star, count: favoriteLinks.value.length }
 ])
+
+watch(() => props.selectedAgeStages, () => {
+  showAllTools.value = false
+}, { deep: true })
+
+function openAllTools() {
+  const isQuickTabActive = activeContentTab.value === 'quick'
+  showAllTools.value = true
+  shouldFocusContentPanel.value = true
+  if (isQuickTabActive) {
+    void nextTick(focusContentPanel)
+    return
+  }
+  activeContentTab.value = 'quick'
+}
+
+function handleContentPanelEntered() {
+  if (shouldFocusContentPanel.value) focusContentPanel()
+}
+
+function focusContentPanel() {
+  contentPanel.value?.focus()
+  shouldFocusContentPanel.value = false
+}
 
 function handleContentTabKeydown(event, currentIndex) {
   let nextIndex = null
@@ -846,6 +885,12 @@ function openLink(link) {
   font-size: 0.75rem;
   color: var(--text-secondary);
   margin-top: 0.125rem;
+}
+
+.stat-detail {
+  margin-top: 0.12rem;
+  color: var(--text-tertiary);
+  font-size: 0.66rem;
 }
 
 .stat-link {

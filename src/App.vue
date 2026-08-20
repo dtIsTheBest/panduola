@@ -38,6 +38,9 @@
               </div>
               <SearchBar v-model="searchQuery" />
               <div class="content-actions">
+                <button class="btn btn-secondary btn-sm" @click="showCategoryManager = true">
+                  <Settings2 :size="16" /> 管理分类
+                </button>
                 <button class="btn btn-secondary btn-sm" @click="exportData">
                   <Download :size="16" /> 导出备份
                 </button>
@@ -100,7 +103,7 @@
 
 <script setup>
 import { inject, ref, onMounted, onUnmounted } from 'vue'
-import { Plus, Download, Upload } from 'lucide-vue-next'
+import { Download, Plus, Settings2, Upload } from 'lucide-vue-next'
 import Header from '@/components/Header.vue'
 import SearchBar from '@/components/SearchBar.vue'
 import CategoryNav from '@/components/CategoryNav.vue'
@@ -432,7 +435,7 @@ function importData(event) {
   
   .content-actions {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .content-actions .btn {
