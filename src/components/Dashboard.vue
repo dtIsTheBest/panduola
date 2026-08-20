@@ -243,6 +243,7 @@
     />
     <GrowthTracker :visible="showGrowthTracker" @close="showGrowthTracker = false" />
     <GrowthSchedule :visible="showGrowthSchedule" @close="showGrowthSchedule = false" />
+    <FoodCalculator :visible="showFoodCalculator" @close="showFoodCalculator = false" />
   </div>
 </template>
 
@@ -261,6 +262,7 @@ import { useCategoryLinkCounts } from '@/composables/useCategoryLinkCounts'
 import AISearch from './AISearch.vue'
 import GrowthTracker from './GrowthTracker.vue'
 import GrowthSchedule from './GrowthSchedule.vue'
+import FoodCalculator from './FoodCalculator.vue'
 import VaccineGuide from './VaccineGuide.vue'
 
 const props = defineProps({
@@ -275,6 +277,7 @@ defineEmits(['category-select', 'view-all-links', 'clear-age-stage', 'stat-click
 const activeContentTab = ref('quick')
 const showGrowthTracker = ref(false)
 const showGrowthSchedule = ref(false)
+const showFoodCalculator = ref(false)
 const showVaccineGuide = ref(false)
 const { getCategoryLinkCount } = useCategoryLinkCounts()
 
@@ -557,6 +560,15 @@ const quickActions = computed(() => {
         color: '#f59e0b'
       })
     }
+    if (stageId === 'age0-1' && !actions.some(action => action.id === 'food')) {
+      supplementalActions.push({
+        id: 'food',
+        icon: Calculator,
+        title: '辅食搭配',
+        description: '满 6 月龄起参考搭配',
+        color: '#10b981'
+      })
+    }
     return [...supplementalActions, ...actions]
   }
   return defaultQuickActions
@@ -675,6 +687,10 @@ function handleAction(action) {
   }
   if (action.id === 'schedule') {
     showGrowthSchedule.value = true
+    return
+  }
+  if (action.id === 'food') {
+    showFoodCalculator.value = true
     return
   }
   alert(`${action.title}功能开发中`)
