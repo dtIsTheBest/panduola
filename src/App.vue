@@ -338,9 +338,9 @@ function importData(event) {
   max-width: var(--content-max-width);
   margin: 0 auto 1.25rem;
   padding: 0.75rem;
-  border: 1px solid rgba(220, 235, 230, 0.86);
+  border: 1px solid var(--chrome-border);
   border-radius: var(--radius-xl);
-  background-color: rgba(255, 255, 255, 0.86);
+  background-color: var(--chrome-control-bg);
   box-shadow: var(--shadow-sm);
   flex-wrap: wrap;
 }
@@ -402,7 +402,7 @@ function importData(event) {
 
 .footer {
   min-height: var(--footer-height);
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.94), rgba(240, 250, 247, 0.94));
+  background: linear-gradient(90deg, var(--footer-bg-start), var(--footer-bg-end));
   border-top: 1px solid var(--border-color);
   padding: 0.75rem 0;
   margin-top: auto;

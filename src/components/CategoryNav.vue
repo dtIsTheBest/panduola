@@ -158,8 +158,8 @@ onBeforeUnmount(() => {
 .sidebar {
   width: var(--sidebar-width);
   background:
-    radial-gradient(circle at 15% 8%, rgba(103, 200, 185, 0.18), transparent 11rem),
-    linear-gradient(180deg, #ffffff 0%, #f8fcfa 100%);
+    radial-gradient(circle at 15% 8%, var(--sidebar-glow), transparent 11rem),
+    linear-gradient(180deg, var(--sidebar-bg-start) 0%, var(--sidebar-bg-end) 100%);
   border-right: 1px solid var(--border-color);
   position: fixed;
   left: 0;
@@ -178,7 +178,7 @@ onBeforeUnmount(() => {
   gap: 0.5rem;
   margin: 0.85rem 0.75rem 0.45rem;
   padding: 0.75rem 0.8rem;
-  background: linear-gradient(135deg, var(--primary-soft), rgba(255, 245, 223, 0.72));
+  background: linear-gradient(135deg, var(--primary-soft), var(--warm-soft));
   border: 1px solid rgba(103, 200, 185, 0.22);
   border-radius: var(--radius-lg);
   border-bottom: 1px solid var(--border-color);
@@ -232,7 +232,7 @@ onBeforeUnmount(() => {
 
 .all-stage-item {
   margin-bottom: 0.2rem;
-  background-color: rgba(255, 255, 255, 0.58);
+  background-color: var(--chrome-control-bg);
   border-color: var(--border-color);
 }
 
@@ -270,14 +270,14 @@ onBeforeUnmount(() => {
 
 .age-stage-item:hover {
   color: var(--text-primary);
-  background-color: rgba(255, 255, 255, 0.9);
+  background-color: var(--chrome-hover);
   border-color: var(--border-color);
   box-shadow: var(--shadow-sm);
   transform: translateX(2px);
 }
 
 .age-stage-item.active {
-  background: linear-gradient(135deg, var(--primary-soft), #f3fbf8);
+  background: linear-gradient(135deg, var(--primary-soft), var(--primary-surface-end));
   border-color: rgba(47, 158, 143, 0.28);
   color: var(--primary-dark);
   box-shadow: 0 8px 20px rgba(47, 158, 143, 0.11);

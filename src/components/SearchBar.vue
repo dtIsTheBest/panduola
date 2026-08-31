@@ -98,7 +98,7 @@ function clear() {
 }
 
 .search-input-wrapper:focus-within {
-  background-color: white;
+  background-color: var(--card-bg);
   border-color: var(--primary-color);
   box-shadow: 0 0 0 4px var(--focus-ring);
 }
@@ -116,7 +116,7 @@ function clear() {
   justify-content: center;
   width: 32px;
   height: 32px;
-  background-color: white;
+  background-color: var(--card-bg);
   border: 1px solid var(--border-color);
   color: var(--text-secondary);
   cursor: pointer;

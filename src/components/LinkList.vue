@@ -473,7 +473,7 @@ function toggleFavoritesFilter() {
   gap: 1rem;
   margin-bottom: 1rem;
   padding: 0.85rem 1rem;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), var(--primary-soft));
+  background: linear-gradient(135deg, var(--card-gradient-start), var(--primary-soft));
   border: 1px solid var(--border-color);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-sm);
@@ -536,7 +536,7 @@ function toggleFavoritesFilter() {
   display: flex;
   height: 100%;
   flex-direction: column;
-  background: linear-gradient(145deg, #ffffff, var(--surface-soft));
+  background: linear-gradient(145deg, var(--card-gradient-start), var(--surface-soft));
   border-color: rgba(220, 235, 230, 0.96);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-sm);
@@ -635,7 +635,7 @@ function toggleFavoritesFilter() {
 .empty-state {
   min-height: 360px;
   padding: 3rem 1rem;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.94), var(--surface-soft));
+  background: linear-gradient(145deg, var(--card-gradient-start), var(--surface-soft));
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-2xl);
   box-shadow: var(--shadow-sm);

@@ -21,6 +21,11 @@
   --border-color: #d8e6e2;
   --border-strong: #bfd5cf;
   --focus-ring: rgba(47, 158, 143, 0.28);
+  --primary-hover-start: #236f67;
+  --primary-hover-end: #175e57;
+  --primary-shadow: rgba(47, 158, 143, 0.2);
+  --primary-shadow-hover: rgba(47, 158, 143, 0.28);
+  --primary-border-hover: rgba(47, 158, 143, 0.28);
   --overlay-color: rgba(21, 53, 48, 0.48);
   --shadow-sm: 0 3px 10px rgba(32, 73, 66, 0.07);
   --shadow-md: 0 12px 28px rgba(32, 73, 66, 0.1);
@@ -37,6 +42,130 @@
   --content-max-width: 1440px;
   --transition-fast: 160ms ease;
   --transition-base: 220ms ease;
+  --brand-accent: #d99a2b;
+  --body-glow-primary: rgba(103, 200, 185, 0.15);
+  --body-glow-secondary: rgba(255, 191, 105, 0.13);
+  --body-gradient-start: #f9fcfb;
+  --body-gradient-end: #f1f6f4;
+  --chrome-bg-start: rgba(255, 255, 255, 0.97);
+  --chrome-bg-end: rgba(242, 251, 248, 0.97);
+  --chrome-border: rgba(200, 221, 215, 0.72);
+  --chrome-control-bg: rgba(255, 255, 255, 0.78);
+  --chrome-hover: rgba(255, 255, 255, 0.72);
+  --sidebar-glow: rgba(103, 200, 185, 0.18);
+  --sidebar-bg-start: #ffffff;
+  --sidebar-bg-end: #f8fcfa;
+  --primary-surface-end: #f3fbf8;
+  --warm-surface-end: #fffaf0;
+  --card-gradient-start: #ffffff;
+  --footer-bg-start: rgba(255, 255, 255, 0.94);
+  --footer-bg-end: rgba(240, 250, 247, 0.94);
+}
+
+:root[data-theme="paper"] {
+  --primary-color: #8a5a3b;
+  --primary-light: #c69a76;
+  --primary-dark: #5f3b28;
+  --primary-soft: #f4e8dc;
+  --accent-color: #b85c4a;
+  --accent-light: #faebe7;
+  --warm-color: #c9913a;
+  --warm-soft: #fbf1d9;
+  --success-color: #52805a;
+  --danger-color: #b34f55;
+  --danger-dark: #8e3740;
+  --bg-color: #f7f1e8;
+  --bg-accent: #f2e8dc;
+  --card-bg: #fffdf9;
+  --surface-soft: #fbf7f1;
+  --surface-muted: #eee4d8;
+  --text-primary: #3f3027;
+  --text-secondary: #6e5b4f;
+  --text-muted: #847267;
+  --border-color: #e2d2c2;
+  --border-strong: #cfbaa6;
+  --focus-ring: rgba(138, 90, 59, 0.26);
+  --primary-hover-start: #795036;
+  --primary-hover-end: #563522;
+  --primary-shadow: rgba(138, 90, 59, 0.2);
+  --primary-shadow-hover: rgba(138, 90, 59, 0.28);
+  --primary-border-hover: rgba(138, 90, 59, 0.3);
+  --overlay-color: rgba(58, 42, 32, 0.5);
+  --shadow-sm: 0 3px 10px rgba(88, 58, 39, 0.07);
+  --shadow-md: 0 12px 28px rgba(88, 58, 39, 0.1);
+  --shadow-lg: 0 18px 44px rgba(88, 58, 39, 0.13);
+  --shadow-xl: 0 28px 70px rgba(88, 58, 39, 0.18);
+  --brand-accent: #c9913a;
+  --body-glow-primary: rgba(198, 154, 118, 0.16);
+  --body-glow-secondary: rgba(211, 172, 103, 0.13);
+  --body-gradient-start: #fdfaf5;
+  --body-gradient-end: #f3ece3;
+  --chrome-bg-start: rgba(255, 253, 249, 0.97);
+  --chrome-bg-end: rgba(250, 243, 234, 0.97);
+  --chrome-border: rgba(220, 202, 184, 0.78);
+  --chrome-control-bg: rgba(255, 253, 249, 0.82);
+  --chrome-hover: rgba(255, 250, 243, 0.88);
+  --sidebar-glow: rgba(198, 154, 118, 0.18);
+  --sidebar-bg-start: #fffdf9;
+  --sidebar-bg-end: #faf4ec;
+  --primary-surface-end: #fcf7f1;
+  --warm-surface-end: #fff7e8;
+  --card-gradient-start: #fffdf9;
+  --footer-bg-start: rgba(255, 253, 249, 0.95);
+  --footer-bg-end: rgba(248, 240, 230, 0.95);
+}
+
+:root[data-theme="sky"] {
+  --primary-color: #4a63a6;
+  --primary-light: #8798d0;
+  --primary-dark: #34477c;
+  --primary-soft: #e9edf9;
+  --accent-color: #8a68a8;
+  --accent-light: #f2eaf8;
+  --warm-color: #d39a52;
+  --warm-soft: #fff4e1;
+  --success-color: #43826d;
+  --danger-color: #bb5266;
+  --danger-dark: #943b50;
+  --bg-color: #f3f5fb;
+  --bg-accent: #eaedf7;
+  --card-bg: #ffffff;
+  --surface-soft: #fafbff;
+  --surface-muted: #edf0f8;
+  --text-primary: #26324f;
+  --text-secondary: #5a6680;
+  --text-muted: #748098;
+  --border-color: #d9deec;
+  --border-strong: #c1c9df;
+  --focus-ring: rgba(74, 99, 166, 0.25);
+  --primary-hover-start: #405993;
+  --primary-hover-end: #2f406f;
+  --primary-shadow: rgba(74, 99, 166, 0.2);
+  --primary-shadow-hover: rgba(74, 99, 166, 0.28);
+  --primary-border-hover: rgba(74, 99, 166, 0.3);
+  --overlay-color: rgba(32, 42, 70, 0.5);
+  --shadow-sm: 0 3px 10px rgba(45, 58, 96, 0.07);
+  --shadow-md: 0 12px 28px rgba(45, 58, 96, 0.1);
+  --shadow-lg: 0 18px 44px rgba(45, 58, 96, 0.13);
+  --shadow-xl: 0 28px 70px rgba(45, 58, 96, 0.18);
+  --brand-accent: #8a68a8;
+  --body-glow-primary: rgba(135, 152, 208, 0.16);
+  --body-glow-secondary: rgba(172, 142, 197, 0.12);
+  --body-gradient-start: #fafbff;
+  --body-gradient-end: #eef1f8;
+  --chrome-bg-start: rgba(255, 255, 255, 0.97);
+  --chrome-bg-end: rgba(242, 245, 253, 0.97);
+  --chrome-border: rgba(207, 214, 235, 0.82);
+  --chrome-control-bg: rgba(255, 255, 255, 0.82);
+  --chrome-hover: rgba(248, 249, 255, 0.9);
+  --sidebar-glow: rgba(135, 152, 208, 0.18);
+  --sidebar-bg-start: #ffffff;
+  --sidebar-bg-end: #f6f8fe;
+  --primary-surface-end: #f8f9ff;
+  --warm-surface-end: #fff8ec;
+  --card-gradient-start: #ffffff;
+  --footer-bg-start: rgba(255, 255, 255, 0.95);
+  --footer-bg-end: rgba(240, 243, 251, 0.95);
 }
 
 * {
@@ -54,9 +183,9 @@ body {
   min-width: 320px;
   font-family: Inter, ui-rounded, "SF Pro Rounded", "PingFang SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background:
-    radial-gradient(circle at 8% 5%, rgba(103, 200, 185, 0.15), transparent 28rem),
-    radial-gradient(circle at 92% 12%, rgba(255, 191, 105, 0.13), transparent 26rem),
-    linear-gradient(180deg, #f9fcfb 0%, var(--bg-color) 55%, #f1f6f4 100%);
+    radial-gradient(circle at 8% 5%, var(--body-glow-primary), transparent 28rem),
+    radial-gradient(circle at 92% 12%, var(--body-glow-secondary), transparent 26rem),
+    linear-gradient(180deg, var(--body-gradient-start) 0%, var(--bg-color) 55%, var(--body-gradient-end) 100%);
   color: var(--text-primary);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
@@ -126,12 +255,12 @@ a:focus-visible,
 .btn-primary {
   background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
   color: white;
-  box-shadow: 0 8px 18px rgba(47, 158, 143, 0.2);
+  box-shadow: 0 8px 18px var(--primary-shadow);
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, #236f67, #175e57);
-  box-shadow: 0 10px 22px rgba(47, 158, 143, 0.28);
+  background: linear-gradient(135deg, var(--primary-hover-start), var(--primary-hover-end));
+  box-shadow: 0 10px 22px var(--primary-shadow-hover);
 }
 
 .btn-secondary {
@@ -143,7 +272,7 @@ a:focus-visible,
 
 .btn-secondary:hover {
   background-color: var(--primary-soft);
-  border-color: rgba(47, 158, 143, 0.28);
+  border-color: var(--primary-border-hover);
   color: var(--primary-dark);
 }
 

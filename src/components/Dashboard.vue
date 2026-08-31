@@ -1285,7 +1285,7 @@ function openLink(link) {
 }
 
 .banner-empty {
-  background: linear-gradient(135deg, var(--primary-soft), #f9fdfb 72%, var(--warm-soft));
+  background: linear-gradient(135deg, var(--primary-soft), var(--primary-surface-end) 72%, var(--warm-soft));
   border-color: rgba(40, 127, 116, 0.18);
 }
 
@@ -1299,7 +1299,7 @@ function openLink(link) {
   justify-content: center;
   min-height: 116px;
   padding: 1.1rem 1.2rem;
-  background: linear-gradient(145deg, var(--warm-soft), #fffaf0);
+  background: linear-gradient(145deg, var(--warm-soft), var(--warm-surface-end));
   border-color: rgba(242, 173, 74, 0.28);
   border-radius: var(--radius-2xl);
   box-shadow: var(--shadow-sm);
@@ -1345,7 +1345,7 @@ function openLink(link) {
   padding: 0.9rem;
   font: inherit;
   text-align: left;
-  background: linear-gradient(145deg, #ffffff, var(--surface-soft));
+  background: linear-gradient(145deg, var(--card-gradient-start), var(--surface-soft));
   border-color: rgba(220, 235, 230, 0.94);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-sm);
@@ -1415,7 +1415,7 @@ function openLink(link) {
 .action-card:hover,
 .recent-link-card:hover,
 .category-card:hover {
-  background-color: white;
+  background-color: var(--card-bg);
   border-color: rgba(40, 127, 116, 0.18);
   box-shadow: var(--shadow-sm);
 }

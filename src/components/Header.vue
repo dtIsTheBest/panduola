@@ -31,6 +31,7 @@
           </button>
         </div>
         <div class="header-actions">
+          <ThemeSwitcher />
           <button
             type="button"
             class="account-trigger"
@@ -53,7 +54,7 @@
             </span>
             <span class="sync-dot" aria-hidden="true"></span>
           </button>
-          <button class="btn btn-secondary" aria-label="刷新页面" title="刷新页面" @click="$emit('refresh')">
+          <button class="btn btn-secondary refresh-btn" aria-label="刷新页面" title="刷新页面" @click="$emit('refresh')">
             <RefreshCw :size="16" />
           </button>
         </div>
@@ -75,6 +76,7 @@ import {
   Sprout,
   UserRound
 } from 'lucide-vue-next'
+import ThemeSwitcher from './ThemeSwitcher.vue'
 
 const props = defineProps({
   currentView: String,
@@ -132,7 +134,7 @@ const accountAriaLabel = computed(() => (
 <style scoped>
 .header {
   min-height: var(--header-height);
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.97), rgba(242, 251, 248, 0.97));
+  background: linear-gradient(90deg, var(--chrome-bg-start), var(--chrome-bg-end));
   border-bottom: 1px solid var(--border-color);
   position: sticky;
   top: 0;
@@ -170,7 +172,7 @@ const accountAriaLabel = computed(() => (
   box-sizing: content-box;
   padding: 0.48rem;
   color: white;
-  background: linear-gradient(135deg, var(--primary-color), #d99a2b);
+  background: linear-gradient(135deg, var(--primary-color), var(--brand-accent));
   border-radius: 0.9rem;
   box-shadow: 0 9px 20px rgba(31, 118, 108, 0.22);
 }
@@ -195,7 +197,7 @@ const accountAriaLabel = computed(() => (
   gap: 0.35rem;
   background-color: var(--surface-muted);
   padding: 0.3rem;
-  border: 1px solid rgba(200, 221, 215, 0.72);
+  border: 1px solid var(--chrome-border);
   border-radius: var(--radius-lg);
 }
 
@@ -221,7 +223,7 @@ const accountAriaLabel = computed(() => (
 
 .nav-item:hover {
   color: var(--primary-dark);
-  background-color: rgba(255, 255, 255, 0.72);
+  background-color: var(--chrome-hover);
 }
 
 .nav-item.active {
@@ -250,7 +252,7 @@ const accountAriaLabel = computed(() => (
   max-width: 220px;
   padding: 0.32rem 0.62rem 0.32rem 0.38rem;
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.78);
+  background: var(--chrome-control-bg);
   border: 1px solid var(--border-color);
   border-radius: 999px;
   cursor: pointer;
@@ -358,6 +360,12 @@ const accountAriaLabel = computed(() => (
 
   .header-content {
     gap: 0.55rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .logo-text {
+    display: none;
   }
 }
 </style>

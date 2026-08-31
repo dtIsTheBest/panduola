@@ -19,6 +19,9 @@ import { createCloudSnapshotRepository } from './sync/cloudSnapshotRepository.js
 import { createSyncCoordinator } from './sync/syncCoordinator.js'
 import { createAiAssistantClient, AI_ASSISTANT_CLIENT_KEY } from './ai/aiAssistantClient.js'
 import { loadAiConfig } from './ai/config.js'
+import { initializeTheme } from './theme/themeManager.js'
+
+initializeTheme()
 
 const syncConfig = loadSyncConfig(import.meta.env, {
   isProduction: import.meta.env.PROD
