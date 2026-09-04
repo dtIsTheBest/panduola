@@ -20,11 +20,12 @@ function createStorage(initialValue = null) {
   }
 }
 
-test('三套主题定义稳定且默认主题保持当前色调', () => {
-  assert.deepEqual(THEMES.map(theme => theme.id), ['growth', 'paper', 'sky'])
+test('四套主题定义稳定且默认主题保持当前色调', () => {
+  assert.deepEqual(THEMES.map(theme => theme.id), ['growth', 'paper', 'sky', 'cyber'])
   assert.equal(DEFAULT_THEME_ID, 'growth')
   assert.equal(Object.isFrozen(THEMES), true)
   assert.equal(THEMES.every(theme => Object.isFrozen(theme) && Object.isFrozen(theme.colors)), true)
+  assert.match(THEMES.find(theme => theme.id === 'cyber').description, /赛博朋克/)
 })
 
 test('非法或损坏的主题值回退默认主题', () => {
@@ -41,6 +42,10 @@ test('应用主题会更新根节点并独立持久化', () => {
   assert.equal(applyTheme('paper', { root, storage }), 'paper')
   assert.equal(root.dataset.theme, 'paper')
   assert.equal(storage.value(THEME_STORAGE_KEY), 'paper')
+
+  assert.equal(applyTheme('cyber', { root, storage }), 'cyber')
+  assert.equal(root.dataset.theme, 'cyber')
+  assert.equal(storage.value(THEME_STORAGE_KEY), 'cyber')
 })
 
 test('初始化读取已保存主题且存储异常时安全降级', () => {

@@ -5,20 +5,26 @@ export const THEMES = Object.freeze([
   {
     id: 'growth',
     name: '岁序清新',
-    description: '薄荷绿与暖金，清新亲和',
+    description: '薄荷绿与暖金，适合轻松日常浏览',
     colors: ['#1f766c', '#f2ad4a', '#f3f7f6']
   },
   {
     id: 'paper',
     name: '暖杏书卷',
-    description: '米杏与陶土，温暖舒缓',
+    description: '米杏纸感与陶土色，适合安静阅读',
     colors: ['#8a5a3b', '#c9913a', '#f7f1e8']
   },
   {
     id: 'sky',
     name: '云岚静蓝',
-    description: '雾蓝与淡紫，安静理性',
+    description: '雾蓝与淡紫，营造理性舒缓的专注感',
     colors: ['#4a63a6', '#8a68a8', '#f3f5fb']
+  },
+  {
+    id: 'cyber',
+    name: '霓虹夜航',
+    description: '深海黑蓝与电光青紫，赛博朋克夜间氛围',
+    colors: ['#070b18', '#22d3ee', '#ff3cac']
   }
 ].map(theme => Object.freeze({
   ...theme,

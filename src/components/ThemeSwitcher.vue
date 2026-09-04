@@ -7,19 +7,19 @@
       aria-haspopup="dialog"
       :aria-expanded="isOpen"
       aria-controls="theme-popover"
-      :aria-label="`切换主题，当前为${activeTheme.name}`"
-      :title="`切换主题 · ${activeTheme.name}`"
+      :aria-label="`主题切换，当前主题为${activeTheme.name}`"
+      :title="`主题切换 · ${activeTheme.name}`"
       @click="togglePopover"
     >
       <Palette :size="17" />
-      <span class="theme-trigger-label">{{ activeTheme.name }}</span>
+      <span class="theme-trigger-copy"><strong>主题切换</strong><small>{{ activeTheme.name }}</small></span>
       <ChevronDown :size="14" class="theme-chevron" :class="{ open: isOpen }" />
     </button>
 
     <transition name="theme-popover">
       <section v-if="isOpen" id="theme-popover" class="theme-popover" role="dialog" aria-label="选择页面主题">
         <header>
-          <div><strong>页面主题</strong><span>仅保存在当前设备</span></div>
+          <div><strong>主题切换</strong><span>选择一种适合当下的视觉风格，仅保存在当前设备</span></div>
           <button type="button" aria-label="关闭主题选择" @click="closePopover(true)"><X :size="16" /></button>
         </header>
         <div class="theme-options" role="radiogroup" aria-label="可用主题">
@@ -158,6 +158,22 @@ function handleStorage(event) {
   white-space: nowrap;
 }
 
+.theme-trigger-copy {
+  display: grid;
+  gap: 0.02rem;
+  text-align: left;
+  line-height: 1.08;
+}
+
+.theme-trigger-copy strong {
+  font-size: 0.72rem;
+}
+
+.theme-trigger-copy small {
+  color: var(--text-secondary);
+  font-size: 0.58rem;
+}
+
 .theme-chevron {
   transition: transform var(--transition-fast);
 }
@@ -286,11 +302,9 @@ function handleStorage(event) {
 }
 
 .theme-copy small {
-  overflow: hidden;
   color: var(--text-secondary);
   font-size: 0.68rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.35;
 }
 
 .theme-popover-enter-active,
@@ -322,7 +336,7 @@ function handleStorage(event) {
     padding: 0;
   }
 
-  .theme-trigger-label,
+  .theme-trigger-copy,
   .theme-chevron {
     display: none;
   }
