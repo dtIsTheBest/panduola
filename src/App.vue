@@ -1,5 +1,6 @@
 <template>
   <div class="app">
+    <InteractionEffects />
     <Header 
       @refresh="refreshData" 
       @menu="toggleSidebar"
@@ -112,6 +113,7 @@ import LinkModal from '@/components/LinkModal.vue'
 import CategoryManager from '@/components/CategoryManager.vue'
 import Dashboard from '@/components/Dashboard.vue'
 import AccountCenter from '@/components/AccountCenter.vue'
+import InteractionEffects from '@/components/InteractionEffects.vue'
 import { ACCOUNT_SYNC_FACADE_KEY } from '@/account/accountSyncFacade'
 import { store } from '@/data/store'
 

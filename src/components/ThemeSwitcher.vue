@@ -33,7 +33,7 @@
             role="radio"
             :aria-checked="activeThemeId === theme.id"
             :tabindex="activeThemeId === theme.id ? 0 : -1"
-            @click="selectTheme(theme.id)"
+            @click="selectTheme(theme.id, $event)"
             @keydown="handleThemeOptionKeydown($event, theme.id)"
           >
             <span class="theme-preview" aria-hidden="true">
@@ -65,6 +65,7 @@ const themeOptions = ref([])
 const isOpen = ref(false)
 const activeThemeId = ref(getAppliedTheme())
 const announcement = ref('')
+let transitionSequence = 0
 const activeTheme = computed(() => (
   THEMES.find(theme => theme.id === activeThemeId.value) ?? THEMES[0]
 ))
@@ -93,14 +94,36 @@ function togglePopover() {
   })
 }
 
-function selectTheme(themeId) {
-  applyThemeSelection(themeId)
-  closePopover(true)
+function selectTheme(themeId, event) {
+  applyThemeSelection(themeId, event, () => closePopover(true))
 }
 
-function applyThemeSelection(themeId) {
-  activeThemeId.value = applyTheme(themeId)
-  announcement.value = `已切换为${activeTheme.value.name}`
+function applyThemeSelection(themeId, event, afterApply) {
+  const transitionId = ++transitionSequence
+  const updateTheme = () => {
+    activeThemeId.value = applyTheme(themeId)
+    announcement.value = `已切换为${activeTheme.value.name}`
+    afterApply?.()
+  }
+
+  if (!canAnimateThemeTransition() || themeId === activeThemeId.value) {
+    clearTransitionOrigin(transitionId)
+    updateTheme()
+    return
+  }
+
+  const origin = getTransitionOrigin(event)
+  const root = document.documentElement
+  root.style.setProperty('--theme-transition-x', `${origin.x}px`)
+  root.style.setProperty('--theme-transition-y', `${origin.y}px`)
+  try {
+    const transition = document.startViewTransition(updateTheme)
+    const clearCurrentOrigin = () => clearTransitionOrigin(transitionId)
+    void transition.finished.then(clearCurrentOrigin, clearCurrentOrigin)
+  } catch {
+    clearTransitionOrigin(transitionId)
+    updateTheme()
+  }
 }
 
 function handleThemeOptionKeydown(event, themeId) {
@@ -120,8 +143,27 @@ function handleThemeOptionKeydown(event, themeId) {
 
   if (nextIndex === null) return
   event.preventDefault()
-  applyThemeSelection(THEMES[nextIndex].id)
+  applyThemeSelection(THEMES[nextIndex].id, event)
   void nextTick(() => themeOptions.value[nextIndex]?.focus())
+}
+
+function canAnimateThemeTransition() {
+  return typeof document.startViewTransition === 'function'
+    && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+function getTransitionOrigin(event) {
+  if (event?.clientX || event?.clientY) return { x: event.clientX, y: event.clientY }
+  const rect = event?.currentTarget?.getBoundingClientRect()
+  return rect
+    ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+    : { x: window.innerWidth / 2, y: window.innerHeight / 2 }
+}
+
+function clearTransitionOrigin(transitionId) {
+  if (transitionId !== transitionSequence) return
+  document.documentElement.style.removeProperty('--theme-transition-x')
+  document.documentElement.style.removeProperty('--theme-transition-y')
 }
 
 function closePopover(restoreFocus) {
