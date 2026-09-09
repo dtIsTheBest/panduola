@@ -29,6 +29,8 @@
 - 将 AI 成长助手改造成站内闭环问答，消除豆包账号跳转和用户自备 API Key 的门槛。
 - 复用现有 Supabase 账号体系，以最小服务端能力保护模型密钥、控制成本，并确保个人数据默认不发送给模型。
 - 调整首页信息层级，将核心内容导航放在 AI 助手之前。
+- 将默认体验从通用输入框升级为任务式成长参谋，让用户先选择目标，再补充最少信息获得结构化建议。
+- 完整保留经典问答组件和调用链，通过公开配置或新版界面入口随时切回。
 
 ### 2.1 非目标 (Non-Goals)
 - 不保存或同步问答历史。
@@ -49,6 +51,10 @@
 - 网络错误、超时、限流、模型错误和配置缺失必须转换为用户可理解的中文提示。
 - 保留常用问题、当前设备内的最近搜索以及医疗免责声明。
 - AI 配置不可用时隐藏不可操作的服务商设置，并保持其他首页功能正常。
+- 默认展示“成长关注、规划本周、饮食搭配、亲子沟通”四类任务入口，选择后再展开补充信息与提交区。
+- 任务式体验只读取首页已选择的年龄阶段，并发送用户本次主动填写的补充内容；不得读取姓名、成长记录、日程、收藏或完整业务快照。
+- 任务式回答要求包含结论、依据、行动建议和专业帮助信号，仍保留医疗免责声明。
+- `VITE_AI_EXPERIENCE_MODE=classic` 时直接展示原 `AISearch.vue`；默认 `guided`，且引导页提供“经典自由问答”入口。
 
 ### 3.2 非功能性需求
 - **安全**：火山方舟 API Key 只能存在于 Supabase Secrets；前端产物、Git 和日志不得包含密钥。
@@ -101,6 +107,9 @@ flowchart LR
 ### 4.2 组件设计 (Component Design)
 #### 4.2.1 核心类/模块设计
 - `AISearch.vue`：纯展示组件，管理输入、加载、回答、错误、本机历史和剩余额度；不感知 Session token、模型协议或服务端密钥。
+- `AIExperience.vue`：体验选择边界，根据公开配置在任务式成长参谋和原经典问答之间切换，不复制服务端或账号逻辑。
+- `AIGrowthCoach.vue`：任务式展示组件，只管理任务选择、最少上下文、请求状态和结构化结果；通过原 `AiAssistantClient` 提交单轮问题。
+- `growthCoach.js`：不可变任务定义、体验模式解析和提问构造纯函数；确保阶段与补充内容均受长度边界约束。
 - `AiAssistantClient`：前端应用服务，获取 Supabase Session、构造站内请求、处理 deadline/取消、校验响应并映射稳定错误码。
 - `main.js` 组合根：创建并共享 Supabase Client Provider，同时注入账号同步和 AI 客户端；组件不直接创建基础设施对象。
 - `ai-growth-assistant` Edge Function：服务端编排入口，负责 CORS、请求校验、可选认证、主体哈希、配额预占、模型调用和脱敏日志。
@@ -285,6 +294,7 @@ Authorization: Bearer <user JWT 或 publishable key>
 |--------|------|--------|------|------------------|
 | `VITE_AI_ENABLED` | bool | false | 前端 AI 入口开关 | 否（重新构建） |
 | `VITE_AI_REQUEST_TIMEOUT_MS` | int | 25000 | 前端总 deadline | 否（重新构建） |
+| `VITE_AI_EXPERIENCE_MODE` | enum | guided | `guided` 使用任务式成长参谋，`classic` 使用原经典问答 | 否（重新构建） |
 | `ARK_API_KEY` | secret | 无 | 火山方舟服务端密钥 | 是 |
 | `ARK_MODEL_ID` | string | 无 | 火山方舟模型或接入点 | 是 |
 | `ARK_THINKING_MODE` | enum | 未设置 | 当前模型验证兼容后可设为 `disabled`；未知值降级为未配置 | 是 |
@@ -313,6 +323,7 @@ Authorization: Bearer <user JWT 或 publishable key>
 |------|----------|------|
 | 2026-08-19 | 完成需求与系统设计 | Codex |
 | 2026-08-20 | 完成生产超时定位及思考模式、deadline、输出上限 A/B | Codex |
+| 2026-09-09 | 增加可回退的任务式成长参谋体验，经典问答代码与调用链保持不变 | Codex |
 
 ## 10. 参考资料 (References)
 - [Supabase Edge Functions](https://supabase.com/docs/guides/functions)

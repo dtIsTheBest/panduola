@@ -2,7 +2,7 @@
 
 > 由 spec.md 生成
 >
-> 任务总数: 6
+> 任务总数: 7
 > 核心原则: 先建后迁后删——先建立配额与网关，再接入前端，最后删除旧调用并完成交付
 
 ## 依赖关系总览
@@ -19,6 +19,8 @@ Task 4（站内 AI UI 与首页顺序）
 Task 5（部署文档与全链路验证）
   ↓
 Task 6（生产 AI 延迟修复）
+  ↓
+Task 7（任务式成长参谋体验）
 ```
 
 ## 变更影响概览
@@ -47,6 +49,12 @@ Task 6（生产 AI 延迟修复）
 | `supabase/functions/ai-growth-assistant/index.ts` | 修改 | Task 6 | 注入模型能力配置 |
 | `tests/ai-function-core.test.js` | 修改 | Task 6 | 锁定方舟请求参数契约 |
 | `docs/troubleshooting-ai-timeout-20260820.md` | 新建 | Task 6 | 生产超时证据、根因与验证记录 |
+| `src/ai/growthCoach.js` | 新建 | Task 7 | 体验模式、任务定义和结构化提问纯函数 |
+| `src/components/AIGrowthCoach.vue` | 新建 | Task 7 | 任务式成长参谋界面和请求状态 |
+| `src/components/AIExperience.vue` | 新建 | Task 7 | 新旧 AI 体验切换边界 |
+| `src/components/Dashboard.vue` | 修改 | Task 7 | 传入当前年龄阶段并挂载体验选择组件 |
+| `tests/ai-growth-coach.test.js` | 新建 | Task 7 | 模式回退与提问构造边界测试 |
+| `.env.example` | 修改 | Task 7 | 增加 AI 体验模式配置示例 |
 
 ### 受影响接口
 
@@ -204,19 +212,44 @@ Task 6（生产 AI 延迟修复）
   - [x] 6.2: 补充请求契约测试
   - [x] 6.3: 完成评审、部署和生产复测
 
+### 任务 7: [x] 增加可回退的任务式成长参谋体验
+- 文件: `src/ai/growthCoach.js`、`src/components/AIGrowthCoach.vue`、`src/components/AIExperience.vue`、`tests/ai-growth-coach.test.js`（新建），`src/components/Dashboard.vue`、`.env.example`（修改）
+- 依赖: Task 6
+- spec 映射: 2、3.1、3.2、4.1、4.2.1、4.2.2、4.2.5、4.3、7、8.2
+- 说明: 默认以四类任务帮助用户组织问题，仅携带年龄阶段和本次主动填写内容；原 `AISearch.vue` 保持不变并支持配置或界面切回。
+- context:
+  - `src/components/AISearch.vue` — 保留的经典问答组件
+  - `src/components/Dashboard.vue:selectedAgeStageInfo` — 当前首页年龄阶段上下文
+  - `AiAssistantClient.ask()` — 复用的单轮 AI 客户端
+- 验收标准:
+  - [x] 默认显示四类任务入口，选择任务后才展开补充信息和提交区
+  - [x] 提交内容只包含任务模板、当前年龄阶段和本次主动填写内容，最终问题不超过 500 字符
+  - [x] 未选择阶段、空补充、160 字边界、未知任务和非法体验模式均有确定行为
+  - [x] 原 `AISearch.vue` 无改动，`classic` 配置和界面入口都能回到经典问答
+  - [x] 加载、成功、失败、额度和免责声明支持键盘与屏幕阅读器
+  - [x] 1200 × 800 与 390 × 844 下无横向溢出或控制台错误
+  - [x] `npm test` 与 `npm run build` 返回 0
+  - [x] Code Review PASS
+- 子任务:
+  - [x] 7.1: 实现任务定义、体验模式和提问构造纯函数
+  - [x] 7.2: 实现任务式成长参谋组件
+  - [x] 7.3: 增加新旧体验切换边界并接入 Dashboard
+  - [x] 7.4: 补充配置示例和纯函数测试
+  - [x] 7.5: 执行代码审查、全量测试和真实浏览器验收
+
 ## Spec 覆盖映射
 
 | Spec 章节 | 任务 | 说明 |
 |-----------|------|------|
-| 1～3 | Task 1～6 | 问题、目标与需求由完整交付覆盖 |
+| 1～3 | Task 1～7 | 问题、目标与需求由完整交付覆盖 |
 | 4.1 | Task 1～4 | 薄前端、服务端网关和配额链路 |
-| 4.2.1 | Task 2～4 | 网关、适配器、客户端和 UI 模块 |
+| 4.2.1 | Task 2～4、7 | 网关、适配器、客户端、经典问答和任务式 UI 模块 |
 | 4.2.2 | Task 1～3 | RPC、HTTP 和前端接口 |
 | 4.2.3 | Task 1 | 配额数据模型 |
 | 4.2.4 | Task 1～3 | 并发、幂等和取消 |
-| 4.2.5 | Task 2～4、6 | 跨层错误处理与生产超时修复 |
+| 4.2.5 | Task 2～4、6、7 | 跨层错误处理、生产超时修复与新版请求状态 |
 | 4.3 | Task 1～4、6 | 核心调用路径与模型低延迟参数 |
 | 4.4～6 | Task 5 | 取舍、备选与业界调研交付说明 |
-| 7 | Task 1～6 | 单元、数据库、集成和浏览器测试 |
-| 8 | Task 2、5、6 | 日志、指标、配置和运维 |
+| 7 | Task 1～7 | 单元、数据库、集成和浏览器测试 |
+| 8 | Task 2、5、6、7 | 日志、指标、配置和运维 |
 | 9～10 | Task 5 | 变更记录和参考资料 |

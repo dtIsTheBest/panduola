@@ -236,7 +236,7 @@
     </section>
 
     <div class="ai-search-full">
-      <AISearch />
+      <AIExperience :age-stage="selectedAgeStageInfo" />
     </div>
 
     <VaccineGuide
@@ -262,7 +262,7 @@ import {
 import { store, AGE_STAGES } from '@/data/store'
 import { openExternalLink } from '@/utils/externalLinks'
 import { useCategoryLinkCounts } from '@/composables/useCategoryLinkCounts'
-import AISearch from './AISearch.vue'
+import AIExperience from './AIExperience.vue'
 import GrowthTracker from './GrowthTracker.vue'
 import GrowthSchedule from './GrowthSchedule.vue'
 import FoodCalculator from './FoodCalculator.vue'
