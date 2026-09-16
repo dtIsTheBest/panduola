@@ -244,6 +244,11 @@
       :selected-age-stages="props.selectedAgeStages"
       @close="showVaccineGuide = false"
     />
+    <ChildDevelopmentGuide
+      :visible="showDevelopmentGuide"
+      :selected-age-stages="props.selectedAgeStages"
+      @close="showDevelopmentGuide = false"
+    />
     <GrowthTracker :visible="showGrowthTracker" @close="showGrowthTracker = false" />
     <GrowthSchedule :visible="showGrowthSchedule" @close="showGrowthSchedule = false" />
     <FoodCalculator :visible="showFoodCalculator" @close="showFoodCalculator = false" />
@@ -257,12 +262,13 @@ import {
   Activity, Calendar, Calculator, Clock, TrendingUp, Users,
   GraduationCap, Stethoscope, Lightbulb, Star, Link, FolderOpen,
   Baby, Wrench, Flower2, Moon, Rocket, Sun, Award, X,
-  Utensils, Shield, Heart, BookMarked, Briefcase, Building
+  Utensils, Shield, Heart, BookMarked, Briefcase, Building, Ruler
 } from 'lucide-vue-next'
 import { store, AGE_STAGES } from '@/data/store'
 import { openExternalLink } from '@/utils/externalLinks'
 import { useCategoryLinkCounts } from '@/composables/useCategoryLinkCounts'
 import AIExperience from './AIExperience.vue'
+import ChildDevelopmentGuide from './ChildDevelopmentGuide.vue'
 import GrowthTracker from './GrowthTracker.vue'
 import GrowthSchedule from './GrowthSchedule.vue'
 import FoodCalculator from './FoodCalculator.vue'
@@ -285,6 +291,7 @@ const showGrowthTracker = ref(false)
 const showGrowthSchedule = ref(false)
 const showFoodCalculator = ref(false)
 const showVaccineGuide = ref(false)
+const showDevelopmentGuide = ref(false)
 const { getCategoryLinkCount } = useCategoryLinkCounts()
 
 const stageIcons = {
@@ -509,9 +516,15 @@ const quickActionsByStage = {
 const defaultQuickActions = [
   { id: 'vaccine', icon: Syringe, title: '疫苗接种', description: '查看疫苗接种时间表', color: '#ef4444' },
   { id: 'growth', icon: TrendingUp, title: '生长曲线', description: '查看身高体重参考', color: '#3b82f6' },
+  { id: 'standards', icon: Ruler, title: '成长标准', description: '查看国家标准与保健节点', color: '#6366f1' },
   { id: 'food', icon: Calculator, title: '辅食计算器', description: '了解辅食搭配方法', color: '#10b981' },
   { id: 'schedule', icon: Calendar, title: '成长日程', description: '记录家庭重要事项', color: '#f59e0b' }
 ]
+const CHILD_DEVELOPMENT_STAGE_IDS = new Set([
+  'age0-1', 'age1-3', 'age3-6', 'age6-9', 'age9-12', 'age12-15', 'age15-18'
+])
+const DEVELOPMENT_ACTION_IDS = new Set(['standards', 'milestones', 'health'])
+const FOOD_ACTION_IDS = new Set(['food', 'feeding'])
 
 const vaccineActionDescriptions = {
   'age3-6': '查看入园入学前接种节点',
@@ -557,6 +570,18 @@ const quickActions = computed(() => {
         color: '#3b82f6'
       })
     }
+    if (
+      CHILD_DEVELOPMENT_STAGE_IDS.has(stageId) &&
+      !actions.some(action => DEVELOPMENT_ACTION_IDS.has(action.id))
+    ) {
+      supplementalActions.push({
+        id: 'standards',
+        icon: Ruler,
+        title: '成长标准',
+        description: '查国家标准和保健节点',
+        color: '#6366f1'
+      })
+    }
     if (!actions.some(action => action.id === 'schedule')) {
       supplementalActions.push({
         id: 'schedule',
@@ -566,7 +591,7 @@ const quickActions = computed(() => {
         color: '#f59e0b'
       })
     }
-    if (stageId === 'age0-1' && !actions.some(action => action.id === 'food')) {
+    if (stageId === 'age0-1' && !actions.some(action => FOOD_ACTION_IDS.has(action.id))) {
       supplementalActions.push({
         id: 'food',
         icon: Calculator,
@@ -724,11 +749,15 @@ function handleAction(action) {
     showGrowthTracker.value = true
     return
   }
+  if (DEVELOPMENT_ACTION_IDS.has(action.id)) {
+    showDevelopmentGuide.value = true
+    return
+  }
   if (action.id === 'schedule') {
     showGrowthSchedule.value = true
     return
   }
-  if (action.id === 'food') {
+  if (FOOD_ACTION_IDS.has(action.id)) {
     showFoodCalculator.value = true
     return
   }

@@ -152,9 +152,9 @@ const defaultCategories = [
 const defaultLinks = [
   {
     id: 'l1',
-    title: '宝宝辅食大全',
-    url: 'https://example.com/baby-food',
-    description: '0-3岁宝宝辅食食谱推荐，营养搭配指南',
+    title: '婴幼儿辅食添加营养指南',
+    url: 'https://www.chinacdc.cn/jkyj/yyyjk2/jswj13949/202006/P020240905519524347025.pdf',
+    description: '中国疾控中心发布的婴幼儿辅食添加官方指南',
     categoryId: 'c1-1',
     tags: ['辅食', '食谱', '营养'],
     ageStages: ['age0-1', 'age1-3'],
@@ -180,12 +180,12 @@ const defaultLinks = [
   },
   {
     id: 'l3',
-    title: '儿童生长发育标准表',
-    url: 'https://example.com/growth-chart',
-    description: '0-18岁儿童身高体重发育参考标准',
+    title: '7岁以下儿童生长标准',
+    url: 'https://www.nhc.gov.cn/cms-search/downFiles/e38068f0a62d4a1eb1bd451414444ec1.pdf',
+    description: '国家卫健委 WS/T 423—2022，含身高体重、BMI 与头围表',
     categoryId: 'c1-3',
     tags: ['发育', '身高', '体重'],
-    ageStages: ['age0-1', 'age1-3', 'age3-6', 'age6-9', 'age9-12', 'age12-15'],
+    ageStages: ['age0-1', 'age1-3', 'age3-6', 'age6-9'],
     createdAt: Date.now(),
     favorite: false,
     visitCount: 0,
@@ -195,11 +195,11 @@ const defaultLinks = [
   {
     id: 'l4',
     title: '国家免疫规划疫苗程序',
-    url: 'https://example.com/vaccine-schedule',
-    description: '中国儿童疫苗接种时间表及注意事项',
+    url: 'https://www.chinacdc.cn/jkyj/mygh02/yfjzfw/mycx/202607/P020260706520776746753.pdf',
+    description: '中国疾控中心国家免疫规划疫苗儿童免疫程序（2026年版）',
     categoryId: 'c2-1',
     tags: ['疫苗', '接种', '免疫'],
-    ageStages: ['age0-1', 'age1-3', 'age3-6', 'age6-9', 'age9-12'],
+    ageStages: ['age0-1', 'age1-3', 'age3-6', 'age6-9', 'age9-12', 'age12-15'],
     createdAt: Date.now(),
     favorite: true,
     visitCount: 0,
@@ -236,12 +236,12 @@ const defaultLinks = [
   },
   {
     id: 'l7',
-    title: '宝宝身高体重计算器',
-    url: 'https://example.com/growth-calculator',
-    description: '输入宝宝年龄和身高体重，查看发育百分位',
+    title: '7～18岁儿童青少年身高发育等级评价',
+    url: 'https://www.nhc.gov.cn/wjw/pqt/201807/a5269d062966455ea55d90a02c690311.shtml',
+    description: '国家卫健委 WS/T 612—2018 身高发育等级标准',
     categoryId: 'c5-1',
-    tags: ['身高', '体重', '计算'],
-    ageStages: ['age0-1', 'age1-3', 'age3-6', 'age6-9', 'age9-12', 'age12-15', 'age15-18'],
+    tags: ['身高', '发育', '标准'],
+    ageStages: ['age6-9', 'age9-12', 'age12-15', 'age15-18'],
     createdAt: Date.now(),
     favorite: false,
     visitCount: 0,
@@ -250,12 +250,12 @@ const defaultLinks = [
   },
   {
     id: 'l8',
-    title: '儿童视力保护指南',
-    url: 'https://example.com/eye-care',
-    description: '保护儿童视力的科学方法和注意事项',
+    title: '0～6岁儿童眼保健及视力检查规范',
+    url: 'https://www.nhc.gov.cn/fys/c100078/202106/eab0d16758a545bb88c2dc84734ae6ee.shtml',
+    description: '国家卫健委儿童眼保健、视力检查和转诊指导',
     categoryId: 'c2-2',
     tags: ['视力', '保护', '眼睛'],
-    ageStages: ['age3-6', 'age6-9', 'age9-12', 'age12-15'],
+    ageStages: ['age0-1', 'age1-3', 'age3-6', 'age6-9'],
     createdAt: Date.now(),
     favorite: false,
     visitCount: 0,
@@ -321,6 +321,14 @@ const defaultLinks = [
 ]
 
 const defaultLinkIds = new Set(defaultLinks.map(link => link.id))
+const defaultLinksById = new Map(defaultLinks.map(link => [link.id, link]))
+const LEGACY_BUILT_IN_URLS = Object.freeze({
+  l1: 'https://example.com/baby-food',
+  l3: 'https://example.com/growth-chart',
+  l4: 'https://example.com/vaccine-schedule',
+  l7: 'https://example.com/growth-calculator',
+  l8: 'https://example.com/eye-care'
+})
 const VISIT_PERSIST_DELAY_MS = 200
 let mutationQueue = Promise.resolve()
 let visitPersistTimer = null
@@ -479,22 +487,38 @@ function normalizeLink(link, index, strict) {
   }
 
   const id = typeof source.id === 'string' && source.id ? source.id : `legacy-link-${index}`
+  const normalizedSource = upgradeLegacyBuiltInLink(source, id)
   return {
-    ...cloneData(source),
+    ...cloneData(normalizedSource),
     id,
-    title: typeof source.title === 'string' ? source.title : '未命名链接',
-    url: typeof source.url === 'string' ? source.url : '',
-    description: typeof source.description === 'string' ? source.description : '',
-    categoryId: typeof source.categoryId === 'string' ? source.categoryId : '',
-    tags: normalizeStringArray(source.tags, 'link.tags', strict),
-    ageStages: normalizeStringArray(source.ageStages, 'link.ageStages', strict),
-    createdAt: Number.isFinite(source.createdAt) ? source.createdAt : 0,
-    favorite: Boolean(source.favorite),
-    visitCount: Number.isFinite(source.visitCount) ? Math.max(0, source.visitCount) : 0,
-    lastVisit: Number.isFinite(source.lastVisit) ? source.lastVisit : null,
-    isDefault: typeof source.isDefault === 'boolean'
-      ? source.isDefault
+    title: typeof normalizedSource.title === 'string' ? normalizedSource.title : '未命名链接',
+    url: typeof normalizedSource.url === 'string' ? normalizedSource.url : '',
+    description: typeof normalizedSource.description === 'string' ? normalizedSource.description : '',
+    categoryId: typeof normalizedSource.categoryId === 'string' ? normalizedSource.categoryId : '',
+    tags: normalizeStringArray(normalizedSource.tags, 'link.tags', strict),
+    ageStages: normalizeStringArray(normalizedSource.ageStages, 'link.ageStages', strict),
+    createdAt: Number.isFinite(normalizedSource.createdAt) ? normalizedSource.createdAt : 0,
+    favorite: Boolean(normalizedSource.favorite),
+    visitCount: Number.isFinite(normalizedSource.visitCount) ? Math.max(0, normalizedSource.visitCount) : 0,
+    lastVisit: Number.isFinite(normalizedSource.lastVisit) ? normalizedSource.lastVisit : null,
+    isDefault: typeof normalizedSource.isDefault === 'boolean'
+      ? normalizedSource.isDefault
       : defaultLinkIds.has(id)
+  }
+}
+
+function upgradeLegacyBuiltInLink(source, id) {
+  if (source.url !== LEGACY_BUILT_IN_URLS[id]) return source
+  const officialLink = defaultLinksById.get(id)
+  if (!officialLink) return source
+  return {
+    ...source,
+    title: officialLink.title,
+    url: officialLink.url,
+    description: officialLink.description,
+    tags: officialLink.tags,
+    ageStages: officialLink.ageStages,
+    isDefault: true
   }
 }
 
