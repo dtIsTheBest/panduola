@@ -4,11 +4,11 @@
       <div>
         <span class="community-eyebrow">家庭共创空间</span>
         <h2 id="community-hub-title">留下建议，也珍藏只属于你的瞬间</h2>
-        <p>留言对所有人可见；亲子照片只保存在你的私密账号空间。</p>
-      </div>
-      <div class="privacy-badge">
-        <ShieldCheck :size="18" />
-        <span>照片账号隔离</span>
+        <p class="community-note">
+          <span>留言公开可见</span>
+          <span class="community-note-separator" aria-hidden="true">·</span>
+          <span>照片仅存于你的私密账号空间</span>
+        </p>
       </div>
     </div>
 
@@ -32,7 +32,6 @@
 
 <script setup>
 import { computed, inject } from 'vue'
-import { ShieldCheck } from 'lucide-vue-next'
 import { ACCOUNT_SYNC_FACADE_KEY } from '@/account/accountSyncFacade'
 import { COMMUNITY_REPOSITORY_KEY } from '@/community/communityRepository'
 import CommentWall from './CommentWall.vue'
@@ -77,10 +76,6 @@ const email = computed(() => accountSyncFacade?.accountState?.session?.email ?? 
 .community-heading {
   position: relative;
   z-index: 1;
-  display: flex;
-  gap: 1rem;
-  align-items: flex-start;
-  justify-content: space-between;
   margin-bottom: 1rem;
 }
 
@@ -99,26 +94,24 @@ const email = computed(() => accountSyncFacade?.accountState?.session?.email ?? 
   color: var(--text-primary);
 }
 
-.community-heading p {
-  margin: 0.45rem 0 0;
-  font-size: 0.9rem;
+.community-note {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.36rem;
+  align-items: center;
+  margin: 0.5rem 0 0;
+  font-size: 0.86rem;
+  font-weight: 560;
   line-height: 1.6;
   color: var(--text-secondary);
+  letter-spacing: 0.025em;
 }
 
-.privacy-badge {
-  display: inline-flex;
-  flex: 0 0 auto;
-  gap: 0.4rem;
-  align-items: center;
-  padding: 0.55rem 0.75rem;
-  font-size: 0.78rem;
-  font-weight: 650;
+.community-note-separator {
   color: var(--primary-color);
-  white-space: nowrap;
-  background: var(--primary-soft);
-  border: 1px solid rgba(40, 127, 116, 0.18);
-  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .community-grid {
@@ -142,12 +135,9 @@ const email = computed(() => accountSyncFacade?.accountState?.session?.email ?? 
     border-radius: var(--radius-xl);
   }
 
-  .community-heading {
-    display: block;
-  }
-
-  .privacy-badge {
-    margin-top: 0.75rem;
+  .community-note {
+    gap: 0.28rem;
+    font-size: 0.82rem;
   }
 }
 </style>
