@@ -13,17 +13,17 @@
     </div>
 
     <div class="community-grid">
+      <FamilyPhotoWall
+        :repository="communityRepository"
+        :is-signed-in="isSignedIn"
+        :user-id="userId"
+        @account-request="$emit('account-request', $event)"
+      />
       <CommentWall
         :repository="communityRepository"
         :is-signed-in="isSignedIn"
         :user-id="userId"
         :email="email"
-        @account-request="$emit('account-request', $event)"
-      />
-      <FamilyPhotoWall
-        :repository="communityRepository"
-        :is-signed-in="isSignedIn"
-        :user-id="userId"
         @account-request="$emit('account-request', $event)"
       />
     </div>
@@ -52,30 +52,10 @@ const email = computed(() => accountSyncFacade?.accountState?.session?.email ?? 
 
 <style scoped>
 .community-hub {
-  position: relative;
   margin-top: 1rem;
-  padding: 1.25rem;
-  overflow: hidden;
-  background: linear-gradient(145deg, var(--card-bg), var(--surface-soft));
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-2xl);
-  box-shadow: var(--shadow-md);
-}
-
-.community-hub::before {
-  position: absolute;
-  top: -90px;
-  right: -80px;
-  width: 220px;
-  height: 220px;
-  pointer-events: none;
-  content: '';
-  background: radial-gradient(circle, rgba(40, 127, 116, 0.13), transparent 68%);
 }
 
 .community-heading {
-  position: relative;
-  z-index: 1;
   margin-bottom: 1rem;
 }
 
@@ -115,8 +95,6 @@ const email = computed(() => accountSyncFacade?.accountState?.session?.email ?? 
 }
 
 .community-grid {
-  position: relative;
-  z-index: 1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.9rem;
@@ -130,11 +108,6 @@ const email = computed(() => accountSyncFacade?.accountState?.session?.email ?? 
 }
 
 @media (max-width: 560px) {
-  .community-hub {
-    padding: 0.85rem;
-    border-radius: var(--radius-xl);
-  }
-
   .community-note {
     gap: 0.28rem;
     font-size: 0.82rem;
