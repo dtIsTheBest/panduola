@@ -19,6 +19,10 @@ import { createCloudSnapshotRepository } from './sync/cloudSnapshotRepository.js
 import { createSyncCoordinator } from './sync/syncCoordinator.js'
 import { createAiAssistantClient, AI_ASSISTANT_CLIENT_KEY } from './ai/aiAssistantClient.js'
 import { loadAiConfig } from './ai/config.js'
+import {
+  COMMUNITY_REPOSITORY_KEY,
+  createCommunityRepository
+} from './community/communityRepository.js'
 import { initializeTheme } from './theme/themeManager.js'
 
 initializeTheme()
@@ -69,8 +73,14 @@ const aiAssistantClient = createAiAssistantClient({
   config: aiConfig,
   clientProvider
 })
+const communityRepository = createCommunityRepository({
+  clientProvider,
+  enabled: syncConfig.isSyncAvailable &&
+    import.meta.env.VITE_COMMUNITY_ENABLED !== 'false'
+})
 
 createApp(App)
   .provide(ACCOUNT_SYNC_FACADE_KEY, accountSyncFacade)
   .provide(AI_ASSISTANT_CLIENT_KEY, aiAssistantClient)
+  .provide(COMMUNITY_REPOSITORY_KEY, communityRepository)
   .mount('#app')

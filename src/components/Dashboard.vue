@@ -235,9 +235,7 @@
       </transition>
     </section>
 
-    <div class="ai-search-full">
-      <AIExperience :age-stage="selectedAgeStageInfo" />
-    </div>
+    <CommunityHub @account-request="$emit('account-request', $event)" />
 
     <VaccineGuide
       :visible="showVaccineGuide"
@@ -267,7 +265,7 @@ import {
 import { store, AGE_STAGES } from '@/data/store'
 import { openExternalLink } from '@/utils/externalLinks'
 import { useCategoryLinkCounts } from '@/composables/useCategoryLinkCounts'
-import AIExperience from './AIExperience.vue'
+import CommunityHub from './CommunityHub.vue'
 import ChildDevelopmentGuide from './ChildDevelopmentGuide.vue'
 import GrowthTracker from './GrowthTracker.vue'
 import GrowthSchedule from './GrowthSchedule.vue'
@@ -281,7 +279,13 @@ const props = defineProps({
   }
 })
 
-defineEmits(['category-select', 'view-all-links', 'clear-age-stage', 'stat-click'])
+defineEmits([
+  'category-select',
+  'view-all-links',
+  'clear-age-stage',
+  'stat-click',
+  'account-request'
+])
 
 const activeContentTab = ref('quick')
 const contentPanel = ref(null)
@@ -1411,13 +1415,6 @@ function openLink(link) {
 .stat-link:hover .stat-arrow {
   opacity: 1;
   transform: translateX(2px);
-}
-
-.ai-search-full {
-  margin-top: 1rem;
-  border: 0;
-  border-radius: var(--radius-2xl);
-  box-shadow: var(--shadow-md);
 }
 
 .quick-actions {

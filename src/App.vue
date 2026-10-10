@@ -28,6 +28,7 @@
             @view-all-links="handleViewAllLinks"
             @clear-age-stage="handleClearAgeStage"
             @stat-click="handleStatClick"
+            @account-request="openAccountCenter"
           />
           
           <template v-else>

@@ -33,7 +33,13 @@ enabled = false
 enabled = false
 
 [storage]
-enabled = false
+enabled = true
+file_size_limit = "10MiB"
+
+[storage.buckets.family-photos]
+public = false
+file_size_limit = "5MiB"
+allowed_mime_types = ["image/webp"]
 
 [auth]
 enabled = true
