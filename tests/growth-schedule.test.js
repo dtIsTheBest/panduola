@@ -77,7 +77,7 @@ test('Schema v3 确定性迁移为空日程集合且 v4 严格校验引用', () 
     }],
     growthRecords: []
   })
-  assert.equal(migrated.schemaVersion, 4)
+  assert.equal(migrated.schemaVersion, 5)
   assert.deepEqual(migrated.scheduleItems, [])
   assert.deepEqual(migrated.scheduleCompletions, [])
 

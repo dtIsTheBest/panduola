@@ -103,7 +103,7 @@ test('旧数据仅在新游客空间写入成功后完成迁移', async () => {
   const repository = createRepository(storage)
 
   const migrated = await repository.load(GUEST_SPACE_KEY)
-  assert.equal(migrated.snapshot.schemaVersion, 4)
+  assert.equal(migrated.snapshot.schemaVersion, 5)
   assert.equal(migrated.snapshot.growthChildren[0].id, 'growth-child-default')
   assert.equal(migrated.snapshot.growthRecords[0].childId, 'growth-child-default')
   assert.equal(migrated.snapshot.categories[0].name, '旧分类')
@@ -145,7 +145,7 @@ test('现有 Web v2 空间 envelope 迁移为 v3 并保留 revision 与同步元
   }))
   const envelope = await createRepository(storage).load(GUEST_SPACE_KEY)
 
-  assert.equal(envelope.snapshot.schemaVersion, 4)
+  assert.equal(envelope.snapshot.schemaVersion, 5)
   assert.equal(envelope.snapshot.growthChildren[0].id, 'growth-child-default')
   assert.equal(envelope.localRevision, 7)
   assert.equal(envelope.sync.remoteRevision, 3)
@@ -217,6 +217,22 @@ test('恢复副本只保留最近五份且失败不覆盖当前快照', async ()
     error => error.code === ERROR_CODES.LOCAL_STORAGE_FAILED
   )
   assert.equal(storage.values.get(currentKey), currentRaw)
+})
+
+test('Schema 升级恢复原因在真实 Web 存储中保持不变', async () => {
+  const storage = createMemoryStorage()
+  const repository = createRepository(storage)
+  const spaceKey = toUserSpaceKey(USER_A)
+
+  await repository.saveRecoveryCopy(spaceKey, makeSnapshot('升级前本机'), {
+    reason: 'schema-upgrade',
+    source: 'local',
+    remoteRevision: 7
+  })
+
+  const [copy] = await repository.listRecoveryCopies(spaceKey)
+  assert.equal(copy.reason, 'schema-upgrade')
+  assert.equal(copy.remoteRevision, 7)
 })
 
 test('损坏主空间从最近恢复副本修复且双重损坏不会覆盖隔离数据', async () => {

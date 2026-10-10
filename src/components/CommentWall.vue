@@ -23,18 +23,43 @@
     </div>
 
     <form v-else-if="isSignedIn" class="comment-form" @submit.prevent="publishComment">
-      <div class="form-row">
-        <label for="comment-nickname">公开昵称</label>
-        <span :class="{ 'over-limit': nicknameLength > 20 }">{{ nicknameLength }}/20</span>
+      <div class="nickname-summary">
+        <span>以 <strong>{{ nickname }}</strong> 公开</span>
+        <button
+          ref="nicknameEditButton"
+          type="button"
+          class="text-button"
+          :disabled="publishing"
+          :aria-expanded="nicknameEditing"
+          aria-controls="comment-nickname-editor"
+          @click="startNicknameEdit"
+        >
+          修改昵称
+        </button>
       </div>
-      <input
-        id="comment-nickname"
-        v-model="nickname"
-        autocomplete="nickname"
-        placeholder="例如：小满妈妈"
-        :disabled="publishing"
-        :aria-invalid="nicknameLength > 20"
-      />
+      <div v-if="nicknameEditing" id="comment-nickname-editor" class="nickname-editor">
+        <div class="form-row">
+          <label for="comment-nickname">公开昵称</label>
+          <span :class="{ 'over-limit': nicknameDraftLength > 20 }">{{ nicknameDraftLength }}/20</span>
+        </div>
+        <input
+          id="comment-nickname"
+          ref="nicknameInput"
+          v-model="nicknameDraft"
+          autocomplete="nickname"
+          placeholder="例如：小满妈妈"
+          :disabled="publishing"
+          :aria-invalid="nicknameDraftLength < 1 || nicknameDraftLength > 20"
+          @keydown.esc.prevent="cancelNicknameEdit"
+        />
+        <div class="nickname-actions">
+          <button type="button" class="text-button" :disabled="!canSaveNickname" @click="saveNickname">
+            保存昵称
+          </button>
+          <button type="button" class="text-button" @click="restoreDefaultNickname">使用默认</button>
+          <button type="button" class="text-button" @click="cancelNicknameEdit">取消</button>
+        </div>
+      </div>
       <div class="form-row content-label">
         <label for="comment-content">想说的话</label>
         <span :class="{ 'over-limit': contentLength > 300 }">{{ contentLength }}/300</span>
@@ -128,7 +153,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import {
   LogIn,
   MessageCircle,
@@ -137,6 +162,11 @@ import {
   Sparkles,
   Trash2
 } from 'lucide-vue-next'
+import {
+  createCommentNicknamePreference,
+  maskEmailForNickname,
+  normalizeCommentNickname
+} from '@/community/commentNickname'
 
 const props = defineProps({
   repository: {
@@ -146,6 +176,14 @@ const props = defineProps({
   isSignedIn: {
     type: Boolean,
     default: false
+  },
+  userId: {
+    type: String,
+    default: null
+  },
+  email: {
+    type: String,
+    default: ''
   }
 })
 
@@ -153,6 +191,10 @@ defineEmits(['account-request'])
 
 const comments = ref([])
 const nickname = ref('')
+const nicknameDraft = ref('')
+const nicknameEditing = ref(false)
+const nicknameInput = ref(null)
+const nicknameEditButton = ref(null)
 const content = ref('')
 const loading = ref(false)
 const publishing = ref(false)
@@ -168,10 +210,15 @@ let ownerGeneration = 0
 let listRequestId = 0
 let publishOperation = 0
 let deleteOperation = 0
+const nicknamePreference = createCommentNicknamePreference()
 
 const isAvailable = computed(() => props.repository?.isAvailable === true)
 const nicknameLength = computed(() => Array.from(nickname.value.trim()).length)
+const nicknameDraftLength = computed(() => Array.from(nicknameDraft.value.trim()).length)
 const contentLength = computed(() => Array.from(content.value.trim()).length)
+const canSaveNickname = computed(() => Boolean(
+  normalizeCommentNickname(nicknameDraft.value)
+))
 const canPublish = computed(() => (
   nicknameLength.value >= 1 && nicknameLength.value <= 20 &&
   contentLength.value >= 1 && contentLength.value <= 300
@@ -182,11 +229,7 @@ const errorActionLabel = computed(() => {
   return '重新加载'
 })
 
-onMounted(() => {
-  if (isAvailable.value) void loadComments()
-})
-
-watch(() => props.isSignedIn, () => {
+watch([() => props.isSignedIn, () => props.userId, () => props.email], () => {
   ownerGeneration += 1
   listRequestId += 1
   publishOperation += 1
@@ -197,8 +240,52 @@ watch(() => props.isSignedIn, () => {
   pendingDeleteId.value = null
   deleteTrigger = null
   errorAction.value = null
+  nickname.value = props.isSignedIn
+    ? nicknamePreference.read(props.userId, props.email)
+    : ''
+  nicknameDraft.value = nickname.value
+  nicknameEditing.value = false
   if (isAvailable.value) void loadComments()
-})
+}, { immediate: true })
+
+async function startNicknameEdit() {
+  nicknameDraft.value = nickname.value
+  nicknameEditing.value = true
+  await nextTick()
+  nicknameInput.value?.focus()
+}
+
+async function closeNicknameEditor() {
+  nicknameEditing.value = false
+  await nextTick()
+  nicknameEditButton.value?.focus()
+}
+
+async function saveNickname() {
+  const normalized = normalizeCommentNickname(nicknameDraft.value)
+  if (!normalized) return
+  nickname.value = normalized
+  const saved = nicknamePreference.write(props.userId, normalized)
+  statusMessage.value = saved
+    ? '公开昵称已更新并保存'
+    : '公开昵称已用于本次，未能保存到当前设备'
+  await closeNicknameEditor()
+}
+
+async function restoreDefaultNickname() {
+  const reset = nicknamePreference.reset(props.userId)
+  nickname.value = maskEmailForNickname(props.email)
+  nicknameDraft.value = nickname.value
+  statusMessage.value = reset
+    ? '已恢复并保存邮箱脱敏昵称'
+    : '邮箱脱敏昵称仅用于本次，原偏好未能删除'
+  await closeNicknameEditor()
+}
+
+async function cancelNicknameEdit() {
+  nicknameDraft.value = nickname.value
+  await closeNicknameEditor()
+}
 
 function getErrorMessage(error) {
   return typeof error?.message === 'string'
@@ -409,6 +496,47 @@ function formatTime(value) {
   background: var(--surface-soft);
   border: 1px solid var(--border-color);
   border-radius: 0.85rem;
+}
+
+.nickname-summary {
+  display: flex;
+  min-width: 0;
+  gap: 0.65rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 0.65rem;
+}
+
+.nickname-summary span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nickname-summary strong {
+  color: var(--text-primary);
+}
+
+.nickname-editor {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.55rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 0.65rem;
+}
+
+.nickname-actions {
+  display: flex;
+  gap: 0.65rem;
+  justify-content: flex-end;
+  font-size: 0.74rem;
 }
 
 .form-row {

@@ -144,8 +144,8 @@
             <div class="section-heading warning-heading">
               <GitCompareArrows :size="20" />
               <div>
-                <h3>选择首次同步方式</h3>
-                <p>本机和云端都有数据，请确认保留哪一份。</p>
+                <h3>{{ isSchemaUpgrade ? '升级云端数据格式' : '选择首次同步方式' }}</h3>
+                <p>{{ isSchemaUpgrade ? '检测到旧版云端数据，请确认以哪一份为准。' : '本机和云端都有数据，请确认保留哪一份。' }}</p>
               </div>
             </div>
             <div class="decision-grid">
@@ -320,6 +320,7 @@ const pendingMigration = computed(() => props.facade.pendingMigration)
 const pendingConflict = computed(() => props.facade.pendingConflict)
 const hasPendingMigration = computed(() => Boolean(pendingMigration.value))
 const hasPendingConflict = computed(() => Boolean(pendingConflict.value))
+const isSchemaUpgrade = computed(() => pendingMigration.value?.requiresMigration === true)
 const sessionUserId = computed(() => accountState.value.session?.userId ?? null)
 
 const statusMap = {
@@ -604,6 +605,7 @@ function stopCooldown() {
 function recoveryReason(reason) {
   return {
     'first-login': '首次登录备份',
+    'schema-upgrade': '数据升级备份',
     'revision-conflict': '同步冲突备份',
     'manual-import': '手动操作备份'
   }[reason] ?? '恢复副本'

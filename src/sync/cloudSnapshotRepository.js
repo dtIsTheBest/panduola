@@ -1,9 +1,7 @@
 import { AppError, ERROR_CODES } from '../account/errors.js'
 import { SYNC_DEFAULTS } from '../account/config.js'
 import {
-  assertSnapshotSize,
   assertSupportedSnapshot,
-  canonicalizeSnapshot,
   prepareReadableSnapshot,
   prepareSnapshot,
   SUPPORTED_SNAPSHOT_SCHEMA_VERSION
@@ -161,22 +159,23 @@ async function validateRemoteRow(row, normalizeSnapshot, cryptoApi) {
   }
 
   assertSupportedSnapshot(snapshot)
+  const normalizedPrepared = await prepareSnapshot(snapshot, { cryptoApi })
   if (row.schema_version === SUPPORTED_SNAPSHOT_SCHEMA_VERSION) {
-    const normalizedPrepared = await prepareSnapshot(snapshot, { cryptoApi })
     if (normalizedPrepared.hash !== originalPrepared.hash) {
       throw new AppError(
         ERROR_CODES.INVALID_REMOTE_DATA,
         '当前 Schema 的云端快照未规范化'
       )
     }
-  } else {
-    assertSnapshotSize(canonicalizeSnapshot(snapshot))
   }
 
   return Object.freeze({
     snapshot,
     revision: parseRevision(row.revision),
     payloadHash: originalPrepared.hash,
+    normalizedHash: normalizedPrepared.hash,
+    sourceSchemaVersion: row.schema_version,
+    requiresMigration: row.schema_version < SUPPORTED_SNAPSHOT_SCHEMA_VERSION,
     updatedAt: parseUpdatedAt(row.updated_at),
     updatedByDevice: String(row.updated_by_device).toLowerCase()
   })
@@ -331,6 +330,9 @@ export function createCloudSnapshotRepository({
     }
     return Object.freeze({
       snapshot: normalized,
+      normalizedHash: prepared.hash,
+      sourceSchemaVersion: normalized.schemaVersion,
+      requiresMigration: false,
       ...validateWriteMetadata(result.data, prepared.hash)
     })
   }
@@ -366,6 +368,9 @@ export function createCloudSnapshotRepository({
     }
     return Object.freeze({
       snapshot: normalized,
+      normalizedHash: prepared.hash,
+      sourceSchemaVersion: normalized.schemaVersion,
+      requiresMigration: false,
       ...validateWriteMetadata(row, prepared.hash)
     })
   }

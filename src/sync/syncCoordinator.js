@@ -40,7 +40,9 @@ function toPendingRemote(remote) {
   return Object.freeze({
     revision: remote.revision,
     updatedAt: remote.updatedAt,
-    updatedByDevice: remote.updatedByDevice
+    updatedByDevice: remote.updatedByDevice,
+    sourceSchemaVersion: remote.sourceSchemaVersion ?? null,
+    requiresMigration: remote.requiresMigration === true
   })
 }
 
@@ -465,7 +467,33 @@ export function createSyncCoordinator({
     await uploadNewSnapshot(attempt)
   }
 
+  function canAutomaticallyMigrateRemote(remote, attempt) {
+    return Boolean(
+      remote.requiresMigration &&
+      remote.normalizedHash === attempt.localHash &&
+      attempt.metadata.remoteRevision === remote.revision &&
+      attempt.metadata.lastSyncedHash === remote.payloadHash
+    )
+  }
+
+  async function handleRemoteSchemaMigration(remote, attempt) {
+    if (!canAutomaticallyMigrateRemote(remote, attempt)) {
+      enterMigration(remote, attempt)
+      return
+    }
+    const migrated = await cloudRepository.compareAndSwap(
+      remote.revision,
+      remote.snapshot
+    )
+    if (!isCurrent(attempt)) return
+    await commitSuccessfulUpload(migrated, attempt)
+  }
+
   async function handleKnownRemote(remote, attempt) {
+    if (remote.requiresMigration) {
+      await handleRemoteSchemaMigration(remote, attempt)
+      return
+    }
     if (remote.payloadHash === attempt.localHash) {
       await acceptRemoteMetadata(remote, attempt)
       return
@@ -508,6 +536,10 @@ export function createSyncCoordinator({
       ? context
       : await getStableLocalAttempt(context)
     if (!attempt || !isCurrent(context)) return
+    if (remote.requiresMigration) {
+      await handleRemoteSchemaMigration(remote, attempt)
+      return
+    }
     if (remote.payloadHash === attempt.localHash) {
       pendingMigrationRemote = null
       pendingConflictRemote = null
@@ -941,6 +973,7 @@ export function createSyncCoordinator({
       enterPending
     )
     if (!remote) return state
+    const reason = remote.requiresMigration ? 'schema-upgrade' : 'first-login'
 
     let resolved
     try {
@@ -948,10 +981,10 @@ export function createSyncCoordinator({
         ? await applyRemoteWithLocalBackup(
             remote,
             context,
-            'first-login',
+            reason,
             enterPending
           )
-        : await uploadLocalWithRemoteBackup(remote, context, 'first-login')
+        : await uploadLocalWithRemoteBackup(remote, context, reason)
     } catch (error) {
       if (error?.code !== ERROR_CODES.REVISION_CONFLICT) throw error
       await recoverRevisionConflict(context)

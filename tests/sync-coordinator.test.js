@@ -16,7 +16,7 @@ function clone(value) {
 
 function createSnapshot(label) {
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     categories: [{ id: 'c1', name: `分类-${label}`, children: [] }],
     links: [{
       id: 'l1',
@@ -51,6 +51,9 @@ async function createRemote(snapshot, revision, overrides = {}) {
     snapshot: clone(snapshot),
     revision,
     payloadHash: prepared.hash,
+    normalizedHash: prepared.hash,
+    sourceSchemaVersion: snapshot.schemaVersion,
+    requiresMigration: false,
     updatedAt: UPDATED_AT,
     updatedByDevice: DEVICE_ID,
     ...overrides
@@ -403,6 +406,124 @@ test('相同 hash 接受新 revision，clean 远端前进时下载快照', async
   assert.equal(downloadCoordinator.getState().status, 'idle')
 })
 
+test('已知且语义等价的 v4 云端快照自动 CAS 升级为 v5', async () => {
+  const normalized = createSnapshot('升级后')
+  const normalizedPrepared = await prepareSnapshot(normalized)
+  const legacyHash = 'a'.repeat(64)
+  const legacyRemote = await createRemote(normalized, 3, {
+    payloadHash: legacyHash,
+    normalizedHash: normalizedPrepared.hash,
+    sourceSchemaVersion: 4,
+    requiresMigration: true
+  })
+  const store = createFakeStore(normalized, {
+    remoteRevision: 3,
+    dirty: false,
+    lastSyncedHash: legacyHash
+  })
+  const cloud = createFakeCloud(legacyRemote)
+  const coordinator = createCoordinator(store, cloud)
+
+  await coordinator.start({ userId: USER_ID })
+
+  assert.equal(cloud.calls.filter(call => call === 'cas').length, 1)
+  assert.equal(cloud.remote.revision, 4)
+  assert.equal(cloud.remote.sourceSchemaVersion, 5)
+  assert.deepEqual(cloud.remote.snapshot, normalized)
+  assert.equal(store.recoveryCopies.length, 0)
+  assert.equal(coordinator.getState().status, 'idle')
+  assert.equal(coordinator.getState().pendingMigration, null)
+})
+
+test('v4 云端与本机内容或同步元数据不等价时要求人工选择', async () => {
+  for (const metadata of [
+    { remoteRevision: 3, dirty: false, lastSyncedHash: 'a'.repeat(64) },
+    { remoteRevision: null, dirty: false, lastSyncedHash: null }
+  ]) {
+    const local = createSnapshot('本机不同')
+    const cloudSnapshot = createSnapshot('云端迁移后')
+    const normalizedPrepared = await prepareSnapshot(cloudSnapshot)
+    const legacyRemote = await createRemote(cloudSnapshot, 3, {
+      payloadHash: 'b'.repeat(64),
+      normalizedHash: normalizedPrepared.hash,
+      sourceSchemaVersion: 4,
+      requiresMigration: true
+    })
+    const store = createFakeStore(local, metadata)
+    const cloud = createFakeCloud(legacyRemote)
+    const coordinator = createCoordinator(store, cloud)
+
+    await coordinator.start({ userId: USER_ID })
+
+    assert.equal(cloud.calls.includes('cas'), false)
+    assert.equal(coordinator.getState().status, 'conflict')
+    assert.equal(coordinator.getState().pendingMigration.sourceSchemaVersion, 4)
+    assert.equal(coordinator.getState().pendingMigration.requiresMigration, true)
+    assert.deepEqual(store.getSnapshot(), local)
+    await coordinator.stop()
+  }
+})
+
+test('人工选择旧 v4 云端时先备份本机再写回规范化 v5', async () => {
+  const local = createSnapshot('待备份本机')
+  const normalizedCloud = createSnapshot('规范化云端')
+  const normalizedPrepared = await prepareSnapshot(normalizedCloud)
+  const legacyRemote = await createRemote(normalizedCloud, 2, {
+    payloadHash: 'c'.repeat(64),
+    normalizedHash: normalizedPrepared.hash,
+    sourceSchemaVersion: 4,
+    requiresMigration: true
+  })
+  const store = createFakeStore(local)
+  const cloud = createFakeCloud(legacyRemote)
+  const coordinator = createCoordinator(store, cloud)
+  await coordinator.start({ userId: USER_ID })
+
+  await coordinator.resolveFirstLogin('use-cloud')
+  await coordinator.syncNow()
+
+  assert.deepEqual(store.recoveryCopies[0], {
+    snapshot: local,
+    reason: 'schema-upgrade',
+    source: 'local',
+    remoteRevision: null
+  })
+  assert.deepEqual(store.getSnapshot(), normalizedCloud)
+  assert.equal(cloud.remote.sourceSchemaVersion, 5)
+  assert.equal(cloud.remote.revision, 3)
+  assert.equal(coordinator.getState().status, 'idle')
+})
+
+test('v4 自动升级 CAS 竞争后接受另一设备已完成的等价 v5', async () => {
+  const normalized = createSnapshot('并发升级')
+  const normalizedPrepared = await prepareSnapshot(normalized)
+  const legacyHash = 'd'.repeat(64)
+  const legacyRemote = await createRemote(normalized, 5, {
+    payloadHash: legacyHash,
+    normalizedHash: normalizedPrepared.hash,
+    sourceSchemaVersion: 4,
+    requiresMigration: true
+  })
+  const store = createFakeStore(normalized, {
+    remoteRevision: 5,
+    dirty: false,
+    lastSyncedHash: legacyHash
+  })
+  const cloud = createFakeCloud(legacyRemote)
+  cloud.setCompareHandler(async () => {
+    cloud.setRemote(await createRemote(normalized, 6))
+    throw new AppError(ERROR_CODES.REVISION_CONFLICT, '另一设备已升级')
+  })
+  const coordinator = createCoordinator(store, cloud)
+
+  await coordinator.start({ userId: USER_ID })
+
+  assert.equal(cloud.calls.filter(call => call === 'cas').length, 1)
+  assert.equal(store.getSyncMetadata().remoteRevision, 6)
+  assert.equal(coordinator.getState().status, 'idle')
+  assert.equal(coordinator.getState().pendingMigration, null)
+})
+
 test('dirty 且 revision 未变时 CAS 上传，远端前进时进入 conflict', async () => {
   const base = createSnapshot('基线')
   const baseRemote = await createRemote(base, 1)
@@ -446,6 +567,8 @@ test('首次迁移与冲突策略在备份成功后才覆盖对应版本', async
   await migrationCoordinator.start({ userId: USER_ID })
 
   assert.equal(migrationCoordinator.getState().pendingMigration.revision, 1)
+  assert.equal(migrationCoordinator.getState().pendingMigration.sourceSchemaVersion, 5)
+  assert.equal(migrationCoordinator.getState().pendingMigration.requiresMigration, false)
   await migrationCoordinator.resolveFirstLogin('use-cloud')
   await migrationCoordinator.syncNow()
   assert.deepEqual(migrationStore.getSnapshot(), cloudSnapshot)

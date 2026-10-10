@@ -26,6 +26,7 @@
 - 登录用户选择亲子照片、填写可选说明并上传；上传前在本机压缩尺寸、移除 EXIF/GPS 元数据。
 - 登录用户浏览和删除仅属于自己账号的照片；退出登录或切换账号时立即清空页面中的照片和临时签名 URL。
 - Supabase、网络或 Storage 暂不可用时，两个模块分别显示可恢复错误，不影响资源、工具、成长记录和账号本地数据。
+- 已有 Schema 4 云端快照包含旧系统占位链接时，新客户端必须显式迁移到 Schema 5，不得因同版本规范化规则变化永久阻断同步。
 
 ## 2. 目标 (Goals)
 - 用公开评论建议墙建立低门槛的用户反馈与社区可见性，同时用私有亲子照片墙提供严格账号隔离的家庭内容空间。
@@ -43,6 +44,7 @@
 - Dashboard 使用 `CommunityHub` 替换用户可见的 `AIExperience`，包含并列的评论建议墙和亲子照片墙，移动端改为单列。
 - 评论列表允许匿名读取，按创建时间倒序展示昵称、内容和时间；单次加载最多 50 条，并提供手动刷新。
 - 只有登录用户可以发布评论；昵称去除首尾空白后为 1～20 个字符，内容为 1～300 个 Unicode 字符。
+- 评论默认昵称由当前账号邮箱脱敏生成；昵称编辑区默认收起，用户修改后按账号保存在本机，后续发布自动复用。
 - 评论不返回或展示邮箱；用户只能删除自己的评论，不支持编辑。
 - 评论删除前需要二次确认，发布与删除成功后刷新列表并恢复明确焦点。
 - 亲子照片墙未登录时只显示隐私说明和登录入口，不请求任何私有照片数据。
@@ -54,6 +56,7 @@
 - 评论与照片操作通过注入的 Community Repository 完成；Vue 组件不得读取 access token 或直接拼装底层请求。
 - 登录 CTA 复用现有账号中心，并在账号中心关闭后恢复到触发按钮。
 - AI 参谋相关代码全部保留，不再从 Dashboard 渲染。
+- 账号快照 Schema 升级为 5；读取旧 v4 时保留原始 hash 校验，并把官方资源替换作为显式迁移。只有本机快照等于规范化后的云端快照且 revision/lastSyncedHash 匹配时自动 CAS 升级，否则进入现有人工选择流程。
 ### 3.2 非功能性需求
 - **安全**：PostgreSQL 表启用并强制 RLS；评论写入和删除基于 `auth.uid()`；照片表和 Storage 对象在服务端按用户目录隔离，前端过滤不作为安全边界。
 - **隐私**：公开评论 DTO 不包含邮箱和原始 user ID；照片签名 URL 仅短时有效；客户端重新编码图片以移除 EXIF/GPS。
@@ -95,6 +98,7 @@ flowchart LR
 - `FamilyPhotoWall.vue`：私有照片列表、上传预览、说明、删除和账号变化清理。
 - `communityRepository.js`：唯一 Supabase 应用层适配器，隐藏 RPC、Storage、签名 URL、错误码和补偿逻辑；通过 `COMMUNITY_REPOSITORY_KEY` 注入。
 - `photoProcessor.js`：纯前端图片类型/大小校验、尺寸计算、Canvas 重新编码和输出约束，不访问 Supabase。
+- `commentNickname.js`：邮箱脱敏昵称和按账号本地偏好存取，不保存原始邮箱。
 - `main.js`：组合根，复用现有 `clientProvider` 创建 Community Repository。
 - `Dashboard.vue`：将 `AIExperience` 挂载替换为 `CommunityHub` 并透传 `account-request`；不删除任何 AI 文件。
 - `App.vue`：承接 `account-request` 并调用现有 `openAccountCenter(trigger)`。
@@ -159,6 +163,7 @@ Storage Bucket：`family-photos`，`public=false`、单文件 5 MiB、仅 `image
 - 浏览器保持单线程事件循环；评论发布、评论删除和照片上传分别单飞，刷新可被新 generation 取代。
 - 评论列表和照片列表使用 request generation；只有发起时的账号 owner ID 仍等于当前账号时才写回。退出或切换账号立即递增 generation、清空照片并撤销本地预览 URL。
 - 评论创建/删除由 PostgreSQL 单语句或短 RPC 完成。照片元数据创建使用按 `auth.uid()` 的 transaction advisory lock，原子检查 24 张上限并插入，不在数据库事务中包含 Storage 网络调用。
+- 云端旧 Schema 自动升级只在 `remote.normalizedHash === localHash`、revision 相等且本地 `lastSyncedHash` 等于原云端 hash 时执行 CAS；任何内容分歧继续要求用户选择并创建恢复副本。
 - 每次上传使用随机 UUID 新路径且 `upsert=false`，避免并发覆盖和 CDN 旧内容。
 - 评论公开列表允许最终一致；照片元数据与对象采用可恢复状态机实现最终一致，失败状态不得伪装成功。
 #### 4.2.5 错误处理
@@ -223,6 +228,8 @@ Storage Bucket：`family-photos`，`public=false`、单文件 5 MiB、仅 `image
 ### 7.1 单元测试
 - `photoProcessor`：MIME、原始 10 MiB、缩放比例、输出 5 MiB、Canvas/toBlob 失败和对象 URL 清理。
 - `CommunityRepository`：公开评论 DTO、输入边界、未登录、本人删除、照片 owner 变化、上传补偿、签名失败和稳定错误映射。
+- `commentNickname`：短邮箱、长邮箱、非法邮箱、20 字上限、按账号隔离、存储失败降级。
+- 云同步：v4 官方链接迁移、同内容自动 CAS、内容分歧人工确认、CAS 冲突与 v5 非规范化拒绝。
 ### 7.2 集成测试
 - pgTAP：游客只能读公开评论 DTO；登录用户发布和删除本人评论；跨用户删除失败；评论 DTO 不含 userId/email。
 - pgTAP：照片元数据只能本人 CRUD；每用户 24 张上限；Storage Bucket 为 private；跨用户对象 SELECT/INSERT/DELETE 均失败。
@@ -261,6 +268,7 @@ Storage Bucket：`family-photos`，`public=false`、单文件 5 MiB、仅 `image
 | 日期 | 变更内容 | 作者 |
 |------|----------|------|
 | 2026-10-10 | 完成需求、架构、组件、数据、安全、并发、测试与运维设计 | Codex |
+| 2026-10-10 | 增加 Schema 5 云快照修复与评论脱敏默认昵称设计 | Codex |
 
 ## 10. 参考资料 (References)
 - [Supabase Storage Access Control](https://supabase.com/docs/guides/storage/security/access-control)

@@ -16,6 +16,8 @@
       <CommentWall
         :repository="communityRepository"
         :is-signed-in="isSignedIn"
+        :user-id="userId"
+        :email="email"
         @account-request="$emit('account-request', $event)"
       />
       <FamilyPhotoWall
@@ -46,6 +48,7 @@ const userId = computed(() => {
   return accountSyncFacade.accountState.session?.userId ?? null
 })
 const isSignedIn = computed(() => Boolean(userId.value))
+const email = computed(() => accountSyncFacade?.accountState?.session?.email ?? '')
 </script>
 
 <style scoped>

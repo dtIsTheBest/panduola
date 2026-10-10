@@ -1,7 +1,7 @@
 # 实施任务清单
 
 > 由 spec.md 生成
-> 任务总数: 4
+> 任务总数: 5
 > 核心原则: 先建后迁后删——先建立数据库与私有存储边界，再实现前端适配器，随后替换首页挂载，最后完成部署验证；AI 代码始终保留。
 
 ## 依赖关系总览
@@ -28,6 +28,11 @@ Task 2（Repository 与图片处理） ──────┘
 | `src/main.js` | 修改 | Task 2 | 复用共享 clientProvider 并注入 Community Repository |
 | `tests/community-repository.test.js` | 新建 | Task 2 | Repository 契约、错误、补偿和账号边界 |
 | `tests/photo-processor.test.js` | 新建 | Task 2 | 文件、尺寸、编码和输出边界 |
+| `src/community/commentNickname.js` | 新建 | Task 5 | 邮箱脱敏默认昵称和按账号偏好存取 |
+| `src/data/store.js`、`src/sync/snapshot.js` | 修改 | Task 5 | Schema 5 与 v4 显式业务迁移 |
+| `src/sync/cloudSnapshotRepository.js`、`src/sync/syncCoordinator.js` | 修改 | Task 5 | 旧云端快照识别、安全自动 CAS 与人工降级 |
+| `src/components/CommentWall.vue`、`CommunityHub.vue`、`AccountCenter.vue` | 修改 | Task 5 | 紧凑昵称编辑与升级提示 |
+| `tests/comment-nickname.test.js`、同步相关测试 | 新建/修改 | Task 5 | 昵称偏好与 Schema 升级回归测试 |
 | `src/components/CommunityHub.vue` | 新建 | Task 3 | 双墙布局、账号状态和登录事件 |
 | `src/components/CommentWall.vue` | 新建 | Task 3 | 公开评论浏览、发布、刷新和本人删除 |
 | `src/components/FamilyPhotoWall.vue` | 新建 | Task 3 | 私有照片选择、预览、上传、展示和删除 |
@@ -50,6 +55,8 @@ Task 2（Repository 与图片处理） ──────┘
 | `CommunityRepository` | 新增注入接口 | CommunityHub 子组件 | Task 2、3 |
 | `Dashboard.account-request` | 新增透传事件 | App.vue | Task 3 |
 | `AIExperience` Dashboard 挂载 | 停止渲染，代码保留 | Dashboard.vue | Task 3 |
+| Snapshot Schema 5 | 版本升级 | Store / Cloud Repository / Coordinator | Task 5 |
+| Comment nickname preference | 新增本地接口 | CommentWall | Task 5 |
 
 ### 构建系统变更
 
@@ -68,6 +75,8 @@ Task 2（Repository 与图片处理） ──────┘
 | 5 | 当前无内容审核、病毒扫描与图片审核 | Task 1～4 | MIME/尺寸/路径双重校验；高级审核明确为非目标 |
 | 6 | Supabase Storage 本地/生产配置可能不同 | Task 1、4 | migration、config 和部署文档同时交付，生产做双账号隔离冒烟 |
 | 7 | 工作区有两份无关 Vibe Coding 文档改动 | 全部 | 不读取为需求、不覆盖、不暂存、不提交 |
+| 8 | Schema 4 之后新增规范化规则导致旧云端快照被拒绝 | Task 5 | 升级为 Schema 5；等价内容自动 CAS，分歧内容人工确认 |
+| 9 | 默认昵称泄露完整邮箱或跨账号串用 | Task 5 | 邮箱脱敏、20 字限制、userId 分区存储、异常降级 |
 
 ## 任务列表
 
@@ -170,6 +179,26 @@ Task 2（Repository 与图片处理） ──────┘
   - [x] 4.2: 执行全量质量门禁与安全扫描
   - [~] 4.3: 部署 Supabase migration/Storage 并执行生产双账号冒烟
   - [x] 4.4: 发布 EdgeOne 前端并验证回滚路径
+
+### 任务 5: [~] 修复云快照升级并优化评论默认昵称
+- 文件: `src/data/store.js`、`src/sync/snapshot.js`、`src/sync/cloudSnapshotRepository.js`、`src/sync/syncCoordinator.js`、`src/components/AccountCenter.vue`、`src/components/CommentWall.vue`、`src/components/CommunityHub.vue`、`src/community/commentNickname.js`、`tests/comment-nickname.test.js`、`tests/account-foundations.test.js`、`tests/cloud-adapters.test.js`、`tests/sync-coordinator.test.js`、相关版本断言测试
+- 依赖: Task 2、Task 3
+- spec 映射: 1.3、3.1、3.2、4.2.1、4.2.4、4.2.5、7.1、8.4
+- 说明: 以 Schema 5 显式承接旧 v4 官方链接迁移；安全等价时自动升级云端，不等价时保留人工选择。评论默认使用邮箱脱敏昵称，编辑入口收起并按账号记忆。
+- 验收标准:
+  - [x] 旧 v4 合法云端快照可读取并迁移，不再触发“当前 Schema 的云端快照未规范化”
+  - [x] 自动 CAS 仅在本机与规范化云端语义一致且 revision/hash 匹配时发生
+  - [x] 本机与云端内容不同、CAS 竞争或当前 v5 非规范化时仍 fail-safe
+  - [x] 评论默认昵称不暴露完整邮箱、不超过 20 字，修改后按账号复用
+  - [x] 昵称输入默认收起，用户可修改或恢复邮箱脱敏默认值
+  - [x] 全量测试、构建、格式和 Code Review PASS
+  - [ ] 推送 main、EdgeOne 生效，生产账号同步恢复且评论发布无需重复输入昵称
+- 子任务:
+  - [x] 5.1: 升级 Snapshot Schema 5 并实现安全云端迁移
+  - [x] 5.2: 实现默认脱敏昵称和本地账号偏好
+  - [x] 5.3: 调整评论墙与账号升级提示
+  - [x] 5.4: 补充迁移、昵称和失败路径测试
+  - [~] 5.5: 评审、发布并执行生产回归
 
 ## Spec 覆盖映射
 

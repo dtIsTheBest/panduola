@@ -19,6 +19,7 @@ const LEGACY_STORAGE_KEY = 'panduola_data'
 const MAX_RECOVERY_COPIES = 5
 const RECOVERY_REASONS = new Set([
   'first-login',
+  'schema-upgrade',
   'revision-conflict',
   'manual-import'
 ])

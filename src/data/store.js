@@ -12,7 +12,7 @@ import {
   createDataSpaceRepository
 } from './dataSpaceRepository.js'
 
-export const CURRENT_SCHEMA_VERSION = 4
+export const CURRENT_SCHEMA_VERSION = 5
 export const DEFAULT_GROWTH_CHILD_ID = 'growth-child-default'
 export const MAX_GROWTH_CHILDREN = 20
 export const MAX_GROWTH_CHILD_NAME_LENGTH = 20

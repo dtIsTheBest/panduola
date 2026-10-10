@@ -33,7 +33,7 @@ function createConfig() {
 
 function createSnapshot(overrides = {}) {
   return validateImportData({
-    schemaVersion: 4,
+    schemaVersion: 5,
     categories: [{ id: 'c1', name: '育儿', children: [] }],
     links: [{
       id: 'l1',
@@ -413,13 +413,16 @@ test('云端 load 返回经 Schema、大小和 hash 验证的当前用户快照'
     snapshot,
     revision: 1,
     payloadHash: row.payload_hash,
+    normalizedHash: row.payload_hash,
+    sourceSchemaVersion: 5,
+    requiresMigration: false,
     updatedAt: UPDATED_AT,
     updatedByDevice: DEVICE_ID
   })
   assert.deepEqual(fake.calls[0], ['from', 'user_snapshots'])
 })
 
-test('云端 load 先验证原始 v2 hash 再迁移为 v3', async () => {
+test('云端 load 先验证原始 v2 hash 再迁移到当前 Schema', async () => {
   const legacySnapshot = {
     schemaVersion: 2,
     categories: [{ id: 'c1', name: '育儿', children: [] }],
@@ -456,12 +459,60 @@ test('云端 load 先验证原始 v2 hash 再迁移为 v3', async () => {
   })
 
   const remote = await repository.load()
-  assert.equal(remote.snapshot.schemaVersion, 4)
+  assert.equal(remote.snapshot.schemaVersion, 5)
   assert.equal(remote.snapshot.growthRecords[0].childId, 'growth-child-default')
   assert.equal(remote.payloadHash, preparedLegacy.hash)
+  assert.equal(remote.sourceSchemaVersion, 2)
+  assert.equal(remote.requiresMigration, true)
+  assert.notEqual(remote.normalizedHash, remote.payloadHash)
 })
 
-test('云端 load 拒绝 hash 正确但未规范化的当前 v3 payload', async () => {
+test('云端合法 v4 占位资源作为显式 Schema 5 迁移读取', async () => {
+  const current = createSnapshot()
+  const legacyV4 = {
+    ...current,
+    schemaVersion: 4,
+    links: [{
+      id: 'l3',
+      title: '儿童生长发育标准表',
+      description: '旧占位资源',
+      url: 'https://example.com/growth-chart',
+      categoryId: 'c1',
+      tags: [],
+      ageStages: [],
+      createdAt: 0,
+      favorite: false,
+      visitCount: 0,
+      lastVisit: null,
+      isDefault: true
+    }]
+  }
+  const preparedLegacy = await prepareReadableSnapshot(legacyV4)
+  const row = {
+    schema_version: 4,
+    payload: legacyV4,
+    payload_hash: preparedLegacy.hash,
+    revision: 3,
+    updated_at: UPDATED_AT,
+    updated_by_device: DEVICE_ID
+  }
+  const fake = createCloudClient({ loadResult: { data: row, error: null } })
+  const repository = createCloudSnapshotRepository({
+    client: fake.client,
+    deviceId: DEVICE_ID,
+    normalizeSnapshot: validateImportData
+  })
+
+  const remote = await repository.load()
+
+  assert.equal(remote.snapshot.schemaVersion, 5)
+  assert.equal(remote.snapshot.links[0].url.startsWith('https://www.nhc.gov.cn/'), true)
+  assert.equal(remote.sourceSchemaVersion, 4)
+  assert.equal(remote.requiresMigration, true)
+  assert.notEqual(remote.normalizedHash, remote.payloadHash)
+})
+
+test('云端 load 拒绝 hash 正确但未规范化的当前 Schema payload', async () => {
   const snapshot = createSnapshot()
   const rawSnapshot = {
     ...snapshot,
@@ -472,7 +523,7 @@ test('云端 load 拒绝 hash 正确但未规范化的当前 v3 payload', async 
   }
   const prepared = await prepareReadableSnapshot(rawSnapshot)
   const row = {
-    schema_version: 4,
+    schema_version: 5,
     payload: rawSnapshot,
     payload_hash: prepared.hash,
     revision: 1,
@@ -533,7 +584,7 @@ test('云端 create 不接受 userId 且仅回读元数据', async () => {
   const { hash } = await prepareSnapshot(snapshot)
   const result = {
     data: {
-      schema_version: 4,
+      schema_version: 5,
       payload_hash: hash,
       revision: 1,
       updated_at: UPDATED_AT,
