@@ -124,7 +124,6 @@
 
 ## 8. Follow-up Items
 
-- 前端推送并由 EdgeOne 完成构建后执行正式域名匿名冒烟。
 - 双账号生产写入/照片隔离需要使用两个测试账号按部署手册执行，不使用真实儿童照片。
 
 ---
@@ -135,7 +134,7 @@
 - **P0 修复**: 0 项
 - **P1 修复**: 2 项
 - **P2 keep**: 0 项（2 项已修复）
-- **Follow-up**: 2 项生产冒烟
+- **Follow-up**: 1 项双账号生产冒烟
 - **最终结论**: PASS
 
 ## 10. Verification
@@ -145,5 +144,9 @@
 - 本地 pgTAP：3 文件、114 assertions PASS。
 - Node 全量测试：189/189 PASS。
 - 生产构建：PASS。
+- GitHub `main`：`af8f25f` 已推送。
+- EdgeOne 正式域名：新双墙构建已生效。
+- 生产匿名冒烟：评论读取、登录入口、无错误提示、AI 入口移除均 PASS。
+- 生产 390px 移动端：无横向溢出。
 - `git diff --cached --check`：PASS。
 - 敏感信息扫描：未发现真实 JWT、API Key、邮箱、数据库密码或签名 URL。

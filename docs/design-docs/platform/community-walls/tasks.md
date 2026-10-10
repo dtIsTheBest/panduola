@@ -160,7 +160,8 @@ Task 2（Repository 与图片处理） ──────┘
   - [x] 部署文档覆盖 migration、Bucket、Policy、前端、验证、止写和回滚顺序
   - [x] 文档不包含真实 JWT、邮箱、照片、API Key、数据库密码或签名 URL
   - [x] `npm test`、`npm run build`、Supabase pgTAP 与 lint 返回 0
-  - [ ] 生产匿名评论可读、登录评论可写且跨账号删除失败
+  - [x] 生产匿名评论可读、登录入口正常且移动端无横向溢出
+  - [ ] 生产登录评论可写且跨账号删除失败
   - [ ] 生产账号 A/B 照片互不可见、退出后旧签名图片不再由页面引用
   - [x] 回滚前端后数据库和 Storage 数据仍保留
   - [x] Code Review PASS
@@ -168,7 +169,7 @@ Task 2（Repository 与图片处理） ──────┘
   - [x] 4.1: 增加公开配置和部署文档
   - [x] 4.2: 执行全量质量门禁与安全扫描
   - [~] 4.3: 部署 Supabase migration/Storage 并执行生产双账号冒烟
-  - [~] 4.4: 发布 EdgeOne 前端并验证回滚路径
+  - [x] 4.4: 发布 EdgeOne 前端并验证回滚路径
 
 ## Spec 覆盖映射
 
