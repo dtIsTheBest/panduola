@@ -34,12 +34,26 @@
           <template v-else>
             <div class="content-header">
               <div class="content-header-copy">
-                <span class="content-eyebrow">家庭成长资源库</span>
-                <h1>查找、收藏和整理实用资源</h1>
-                <p>可按成长阶段筛选，也可以搜索标题、说明或标签</p>
+                <span class="content-eyebrow">{{ resourceMode === 'links' ? '家庭成长资源库' : '家庭经验沉淀' }}</span>
+                <h1>{{ resourceMode === 'links' ? '查找、收藏和整理实用资源' : '记录只属于你的育儿经验' }}</h1>
+                <p>{{ resourceMode === 'links' ? '可按成长阶段筛选，也可以搜索标题、说明或标签' : '私密保存文字、参考链接与家庭图片' }}</p>
               </div>
-              <SearchBar v-model="searchQuery" />
-              <div class="content-actions">
+              <div class="resource-mode-switch" aria-label="资源库内容类型">
+                <button
+                  type="button"
+                  :class="{ active: resourceMode === 'links' }"
+                  :aria-pressed="resourceMode === 'links'"
+                  @click="resourceMode = 'links'"
+                ><Link2 :size="15" />收藏资源</button>
+                <button
+                  type="button"
+                  :class="{ active: resourceMode === 'notes' }"
+                  :aria-pressed="resourceMode === 'notes'"
+                  @click="resourceMode = 'notes'"
+                ><BookHeart :size="15" />育儿手记</button>
+              </div>
+              <SearchBar v-if="resourceMode === 'links'" v-model="searchQuery" />
+              <div v-if="resourceMode === 'links'" class="content-actions">
                 <button class="btn btn-secondary btn-sm" @click="showCategoryManager = true">
                   <Settings2 :size="16" /> 管理分类
                 </button>
@@ -57,6 +71,7 @@
             </div>
             
             <LinkList
+              v-if="resourceMode === 'links'"
               :category="selectedCategory"
               :search-query="searchQuery"
               :filter-mode="filterMode"
@@ -67,6 +82,7 @@
               @filter-change="filterMode = $event"
               @back="handleBack"
             />
+            <ParentingNotes v-else @account-request="openAccountCenter" />
           </template>
         </div>
       </div>
@@ -105,7 +121,7 @@
 
 <script setup>
 import { inject, ref, onMounted, onUnmounted } from 'vue'
-import { Download, Plus, Settings2, Upload } from 'lucide-vue-next'
+import { BookHeart, Download, Link2, Plus, Settings2, Upload } from 'lucide-vue-next'
 import Header from '@/components/Header.vue'
 import SearchBar from '@/components/SearchBar.vue'
 import CategoryNav from '@/components/CategoryNav.vue'
@@ -115,6 +131,7 @@ import CategoryManager from '@/components/CategoryManager.vue'
 import Dashboard from '@/components/Dashboard.vue'
 import AccountCenter from '@/components/AccountCenter.vue'
 import InteractionEffects from '@/components/InteractionEffects.vue'
+import ParentingNotes from '@/components/ParentingNotes.vue'
 import { ACCOUNT_SYNC_FACADE_KEY } from '@/account/accountSyncFacade'
 import { store } from '@/data/store'
 
@@ -126,6 +143,7 @@ const editingLink = ref(null)
 const showCategoryManager = ref(false)
 const categoryNav = ref(null)
 const currentView = ref('dashboard')
+const resourceMode = ref('links')
 const filterMode = ref('')
 const showAccountCenter = ref(false)
 const accountTrigger = ref(null)
@@ -145,11 +163,13 @@ onUnmounted(() => {
 
 function handleCategoryChange(category) {
   selectedCategory.value = category
+  resourceMode.value = 'links'
   currentView.value = 'links'
 }
 
 function handleCategorySelect(category) {
   selectedCategory.value = category
+  resourceMode.value = 'links'
   currentView.value = 'links'
 }
 
@@ -157,6 +177,7 @@ function handleManagedCategoryView(category) {
   selectedCategory.value = category
   searchQuery.value = ''
   filterMode.value = ''
+  resourceMode.value = 'links'
   currentView.value = 'links'
   showCategoryManager.value = false
 }
@@ -169,6 +190,7 @@ function handleViewChange(view) {
 }
 
 function handleViewAllLinks() {
+  resourceMode.value = 'links'
   handleViewChange('links')
 }
 
@@ -191,18 +213,21 @@ function handleStatClick(payload) {
       searchQuery.value = ''
       filterMode.value = ''
       currentView.value = 'links'
+      resourceMode.value = 'links'
       break
     case 'favorites':
       selectedCategory.value = null
       searchQuery.value = ''
       filterMode.value = 'favorites'
       currentView.value = 'links'
+      resourceMode.value = 'links'
       break
     case 'today':
       selectedCategory.value = null
       searchQuery.value = ''
       filterMode.value = 'today'
       currentView.value = 'links'
+      resourceMode.value = 'links'
       break
   }
 }
@@ -374,6 +399,36 @@ function importData(event) {
   color: var(--text-secondary);
   font-size: 0.75rem;
   line-height: 1.45;
+}
+
+.resource-mode-switch {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  background: var(--surface-muted);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+}
+
+.resource-mode-switch button {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  min-height: 34px;
+  padding: 0.38rem 0.68rem;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-md);
+}
+
+.resource-mode-switch button.active {
+  color: var(--primary-dark);
+  background: var(--card-bg);
+  box-shadow: var(--shadow-sm);
 }
 
 .content-actions {

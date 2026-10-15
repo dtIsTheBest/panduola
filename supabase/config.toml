@@ -41,6 +41,11 @@ public = false
 file_size_limit = "5MiB"
 allowed_mime_types = ["image/webp"]
 
+[storage.buckets.parenting-note-images]
+public = false
+file_size_limit = "5MiB"
+allowed_mime_types = ["image/webp"]
+
 [auth]
 enabled = true
 site_url = "http://127.0.0.1:5173"
